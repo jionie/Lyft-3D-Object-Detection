@@ -101,17 +101,17 @@ def transform_train(image, mask):
     return image, mask
 
 def transform_valid(image, mask):
-    if random.random() < 0.5:
-        image = albumentations.RandomRotate90(p=1)(image=image)['image']
-        mask = albumentations.RandomRotate90(p=1)(image=mask)['image']
+    # if random.random() < 0.5:
+    #     image = albumentations.RandomRotate90(p=1)(image=image)['image']
+    #     mask = albumentations.RandomRotate90(p=1)(image=mask)['image']
 
-    if random.random() < 0.5:
-        image = albumentations.Transpose(p=1)(image=image)['image']
-        mask = albumentations.Transpose(p=1)(image=mask)['image']
+    # if random.random() < 0.5:
+    #     image = albumentations.Transpose(p=1)(image=image)['image']
+    #     mask = albumentations.Transpose(p=1)(image=mask)['image']
 
-    if random.random() < 0.5:
-        image = albumentations.VerticalFlip(p=1)(image=image)['image']
-        mask = albumentations.VerticalFlip(p=1)(image=mask)['image']
+    # if random.random() < 0.5:
+    #     image = albumentations.VerticalFlip(p=1)(image=image)['image']
+    #     mask = albumentations.VerticalFlip(p=1)(image=mask)['image']
 
     if random.random() < 0.5:
         image = albumentations.HorizontalFlip(p=1)(image=image)['image']
@@ -218,7 +218,7 @@ class_weights = class_weights.to(device)
 ############################################################################### training parameters
 train_batch_size = 16
 valid_batch_size = 64
-num_epoch = 40
+num_epoch = 100
 accumulation_steps = 4
 checkpoint_filename = "unet_checkpoint.pth"
 checkpoint_filepath = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet", checkpoint_filename)
@@ -226,6 +226,7 @@ checkpoint_filepath = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet
 
 ############################################################################### model and optimizer
 model = get_unet_model(model_name="efficientnet-b3", IN_CHANNEL=3, NUM_CLASSES=len(classes)+1, SIZE=SIZE)
+model.load_pretrain(checkpoint_filepath)
 model = model.to(device)
 
 # optim = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -246,7 +247,7 @@ writer = SummaryWriter()
 log_file = open("log.txt", "w")
 valid_metric_optimal = np.inf
 
-for epoch in range(1, num_epoch+1):
+for epoch in range(9, num_epoch+1):
     print("Epoch", epoch)
     print("Epoch", epoch, file = log_file)
 
@@ -257,6 +258,7 @@ for epoch in range(1, num_epoch+1):
     eval_step = len(train_dataloader)  
     train_losses = []
     valid_losses = []
+    valid_ce_losses = []
 
     torch.cuda.empty_cache()
     scheduler.step()
@@ -270,12 +272,12 @@ for epoch in range(1, num_epoch+1):
         target = target.to(device)  # [N, H, W] with class indices (0, 1)
         
         prediction, _ = model(X)  # [N, 2, H, W]
-        # loss = F.cross_entropy(prediction, target, weight=class_weights)
+        loss = F.cross_entropy(prediction, target, weight=class_weights)
 
-        target = target.unsqueeze_(1)
+        target = target.clone().unsqueeze_(1)
         one_hot = torch.cuda.FloatTensor(target.size(0), len(classes)+1, target.size(2), target.size(3)).zero_()
         target_one_hot = one_hot.scatter_(1, target.data, 1)
-        loss = model.get_loss(SIZE, prediction, fc=None, labels=target_one_hot)
+        loss += model.get_loss(SIZE, prediction, fc=None, labels=target_one_hot)
 
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
@@ -305,7 +307,7 @@ for epoch in range(1, num_epoch+1):
                     target = target.to(device)  # [N, H, W] with class indices (0, 1)
                     prediction, _ = model(X)  # [N, 2, H, W]
 
-                    # loss = F.cross_entropy(prediction, target, weight=class_weights)
+                    ce_loss = F.cross_entropy(prediction, target, weight=class_weights).detach().cpu().numpy()
 
                     target = target.unsqueeze_(1)
                     one_hot = torch.cuda.FloatTensor(target.size(0), len(classes)+1, target.size(2), target.size(3)).zero_()
@@ -315,9 +317,10 @@ for epoch in range(1, num_epoch+1):
                     writer.add_scalar('val_loss', loss, epoch*len(valid_dataloader)*valid_batch_size+val_batch_i*valid_batch_size)
 
                     valid_losses.append(loss.detach().cpu().numpy())
+                    valid_ce_losses.append(ce_loss)
         
-    print("Train Loss:", np.mean(train_losses), "Valid Loss:", np.mean(valid_losses))
-    print("Train Loss:", np.mean(train_losses), "Valid Loss:", np.mean(valid_losses), file = log_file)
+    print("Train Loss:", np.mean(train_losses), "Valid Loss:", np.mean(valid_losses), "Valid CE Loss:", np.mean(valid_ce_losses))
+    print("Train Loss:", np.mean(train_losses), "Valid Loss:", np.mean(valid_losses), "Valid CE Loss:", np.mean(valid_ce_losses), file = log_file)
 
     val_metric_epoch = np.mean(valid_losses)
 

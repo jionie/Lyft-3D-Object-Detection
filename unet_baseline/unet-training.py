@@ -145,7 +145,8 @@ class BEVImageDataset(torch.utils.data.Dataset):
         if map_filepaths is not None:
             assert len(input_filepaths) == len(map_filepaths)
         
-        assert len(input_filepaths) == len(target_filepaths)
+        if (self.type != "test"):
+            assert len(input_filepaths) == len(target_filepaths)
 
     def __len__(self):
         return len(self.input_filepaths)
@@ -174,12 +175,15 @@ class BEVImageDataset(torch.utils.data.Dataset):
         elif (self.type == "valid"):
             im, target = transform_valid(im, target)
         else:
-            im = transform_test(im)
+            im, _ = transform_test(im) # im_simple, im_hard
         
         im = torch.from_numpy(im.transpose(2,0,1))
-        target = torch.from_numpy(target)
-        
-        return im, target, sample_token
+
+        if (self.type != "test"):
+            target = torch.from_numpy(target)
+            return im, target, sample_token
+        else:
+            return im, sample_token
 
 
 

@@ -325,7 +325,7 @@ test_dataset = BEVImageDataset(input_filepaths=test_input_filepaths, target_file
 
 ############################################################################## define util functions
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
-background_threshold = 200
+background_threshold = 100
 
 def calc_detection_box(prediction_opened,class_probability):
 
@@ -451,7 +451,7 @@ class_weights = class_weights.to(device)
 ############################################################################### training parameters
 test_batch_size = 64
 checkpoint_filename = "unet_checkpoint.pth"
-checkpoint_filepath = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet", checkpoint_filename)
+checkpoint_filepath = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet/", checkpoint_filename)
 
 
 ############################################################################### model and optimizer

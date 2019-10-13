@@ -18,10 +18,10 @@ input
 ```
 please in second folder and run
 ```bash
-python3 create_data.py lyft_data_prep --root_path="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --version="lyft-trainval" --dataset_name="MyLyftDataset" --max_sweeps=10
+python3 create_data.py lyft_data_prep --root_path=train_root_path --version="lyft-trainval" --dataset_name="MyLyftDataset" --max_sweeps=10
 ```
 ```bash
-python3 create_data.py lyft_data_prep --root_path="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root" --version="lyft-test" --dataset_name="MyLyftDataset" --max_sweeps=10
+python3 create_data.py lyft_data_prep --root_path=test_root_path --version="lyft-test" --dataset_name="MyLyftDataset" --max_sweeps=10
 ```
 to generate dataset for second.
 

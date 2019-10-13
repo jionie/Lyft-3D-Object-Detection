@@ -177,15 +177,15 @@ def _fill_trainval_infos(nusc,
             val_nusc_infos.append(info)
     return train_nusc_infos, val_nusc_infos
 
-def create_nuscenes_infos(root_path, target_path, version="lyft-trainval", max_sweeps=10):
-
+def create_lyft_infos(root_path, version="lyft-trainval", max_sweeps=10):
+    
     from nuscenes.nuscenes import NuScenes
     from nuscenes.utils import splits
     
     if (version in ["v1.0-trainval", "v1.0-test", "v1.0-mini"]):
         nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
     else:
-        nusc = LyftDataset(data_path='.', json_path=root_path, verbose=True)
+        nusc = LyftDataset(data_path=root_path, json_path=Path(root_path) / "data", verbose=True)
   
     available_vers = ["v1.0-trainval", "v1.0-test", "v1.0-mini", "lyft-trainval", "lyft-test"]
     assert version in available_vers
@@ -199,14 +199,14 @@ def create_nuscenes_infos(root_path, target_path, version="lyft-trainval", max_s
         train_scenes = splits.mini_train
         val_scenes = splits.mini_val
     elif version == "lyft-trainval":
-        with open("train_scenes.txt") as f:
+        with open(Path(root_path) / "train_scenes.txt") as f:
             train_scenes = f.read().splitlines()
             
-        with open("val_scenes.txt") as f:
+        with open(Path(root_path) / "val_scenes.txt") as f:
             val_scenes = f.read().splitlines()
 
     elif version == "lyft-test":
-        with open("test_scenes.txt") as f:
+        with open(Path(root_path) / "test_scenes.txt") as f:
             train_scenes = f.read().splitlines()
         val_scenes = []
     else:
@@ -246,7 +246,7 @@ def create_nuscenes_infos(root_path, target_path, version="lyft-trainval", max_s
             "infos": train_nusc_infos,
             "metadata": metadata,
         }
-        with open(target_path +  "/infos_test.pkl", 'wb') as f:
+        with open(Path(root_path) /  "infos_test.pkl", 'wb') as f:
             pickle.dump(data, f)
     else:
         print(
@@ -256,12 +256,12 @@ def create_nuscenes_infos(root_path, target_path, version="lyft-trainval", max_s
             "infos": train_nusc_infos,
             "metadata": metadata,
         }
-        with open(target_path +  "/infos_train.pkl", 'wb') as f:
+        with open(Path(root_path) /  "infos_train.pkl", 'wb') as f:
             pickle.dump(data, f)
         data["infos"] = val_nusc_infos
-        with open(target_path +  "/infos_val.pkl", 'wb') as f:
+        with open(Path(root_path) /  "infos_val.pkl", 'wb') as f:
             pickle.dump(data, f)
             
 if __name__ == "__main__":
-    create_nuscenes_infos(root_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_data', \
-        target_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles', version="lyft-test", max_sweeps=10)
+    create_lyft_infos(root_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root', \
+        version="lyft-test", max_sweeps=10)

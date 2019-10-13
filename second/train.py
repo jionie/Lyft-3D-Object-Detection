@@ -150,8 +150,8 @@ def train(config_path,
         if Path(model_dir).exists():
             model_dir = torchplus.train.create_folder(model_dir)
     model_dir = Path(model_dir)
-    if not resume and model_dir.exists():
-        raise ValueError("model dir exists and you don't specify resume.")
+    # if not resume and model_dir.exists():
+    #     raise ValueError("model dir exists and you don't specify resume.")
     model_dir.mkdir(parents=True, exist_ok=True)
     if result_path is None:
         result_path = model_dir / 'results'

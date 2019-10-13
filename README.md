@@ -16,7 +16,11 @@ input
        ├── maps
        ├── sample_submission.csv
 ```
-please in second folder and run
+please in second folder run:
+```bash
+python3 generate-lyft-train-val-secnes.py
+```
+to generate scene splitting and run:
 ```bash
 python3 create_data.py lyft_data_prep --root_path=train_root_path --version="lyft-trainval" --dataset_name="MyLyftDataset" --max_sweeps=10
 ```

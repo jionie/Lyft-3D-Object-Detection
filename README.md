@@ -5,15 +5,15 @@ please arrange input folder as
        ├── data
        ├── images
        ├── lidar
-       └── maps
-       └── train.csv
+       ├── maps
+       ├── train.csv
 
 └── test_root
        ├── data
        ├── images
        ├── lidar
-       └── maps
-       └── sample_submission.csv
+       ├── maps
+       ├── sample_submission.csv
 
 please in second folder and run
 

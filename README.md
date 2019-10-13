@@ -1,13 +1,14 @@
 # Lyft-3D-Object-Detection
 please arrange input folder as 
 ```plain
+input
 └── train_root
-       ├── data
-       ├── images
-       ├── lidar
-       ├── maps
-       ├── train.csv
-
+|      ├── data
+|      ├── images
+|      ├── lidar
+|      ├── maps
+|      ├── train.csv
+|
 └── test_root
        ├── data
        ├── images

@@ -6,6 +6,15 @@ import random
 import os
 import glob
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--train_root_kitti', type=str, \
+    default='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI')
+parser.add_argument('--test_root_kitti', type=str, \
+    default='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/KITTI')
+args = parser.parse_args()
+
 def generating_scenes_kitti(train_root_path, test_root_path):
     ############################ Set random seed for list shuffle
     SEED = 42
@@ -51,5 +60,5 @@ def generating_scenes_kitti(train_root_path, test_root_path):
             
 
 if __name__ == "__main__":
-    generating_scenes_kitti("/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI", \
-        "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/KITTI")
+    generating_scenes_kitti(args.train_root_kitti, \
+        args.test_root_kitti)

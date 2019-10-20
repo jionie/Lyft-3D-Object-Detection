@@ -16,16 +16,26 @@ input
        ├── maps
        ├── sample_submission.csv
 ```
-please in second folder run:
+We plan to use PointRCNN first, so we need to get KITTI format data by Lyft-sdk, please in "nuscenes-devkit" folder and run (please substitute "host-a011_lidar1_1233090652702363606.bin" in your "train_root/lidar" folder before transformation):
 ```bash
-python3 generate-lyft-train-val-secnes.py --train_root_path=your_train_root_path --test_root_path=your_test_root_path
-```
-to generate scene splitting and run:
-```bash
-python3 create_data.py lyft_data_prep --root_path=your_train_root_path --version="lyft-trainval" --dataset_name="MyLyftDataset" --max_sweeps=10
+python3 -m export_kitti nuscenes_gt_to_kitti --lyft_dataroot "*/train_root" --table_folder "*/train_root/data" --store_dataroot "*/train_root/KITTI"
+
 ```
 ```bash
-python3 create_data.py lyft_data_prep --root_path=your_test_root_path --version="lyft-test" --dataset_name="MyLyftDataset" --max_sweeps=10
+python3 -m export_kitti nuscenes_gt_to_kitti --lyft_dataroot "*/test_root" --table_folder "*/test_root/data" --store_dataroot "*/test_root/KITTI"
+
 ```
-to generate dataset for second.
+then, we need to get splits.txt like KITTI dataset, please in "generating-dataset" folder run:
+```bash
+python3 generate-lyft-train-val-secnes-kitti.py --train_root_kitti "*/train_root/KITTI" --test_root_kitti "*/test_root/KITTI"
+```
+Then we need to generate gt_database for PointRCNN, please in "PointRCNN" folder, follow the instruction to compile PointRCNN, then run:
+```bash
+python3 generate_gt_database.py --root_dir "*/train_root" --save_dir "*/train_root/KITTI/gt_database" --split train
+
+```
+```bash
+python3 generate_gt_database.py --root_dir "*/test_root" --save_dir "*/test_root/KITTI/gt_database" --split test
+
+```
 

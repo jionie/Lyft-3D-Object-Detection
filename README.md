@@ -1,25 +1,31 @@
 # Lyft-3D-Object-Detection
 please arrange input folder as 
-
+```plain
+input
 └── train_root
-       ├── data
-       ├── images
-       ├── lidar
-       └── maps
-       └── train.csv
-
+|      ├── data
+|      ├── images
+|      ├── lidar
+|      ├── maps
+|      ├── train.csv
+|
 └── test_root
        ├── data
        ├── images
        ├── lidar
-       └── maps
-       └── sample_submission.csv
-
-please in second folder and run
-
-python3 create_data.py lyft_data_prep --root_path="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --version="lyft-trainval" --dataset_name="MyLyftDataset" --max_sweeps=10
-
-python3 create_data.py lyft_data_prep --root_path="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root" --version="lyft-test" --dataset_name="MyLyftDataset" --max_sweeps=10
-
+       ├── maps
+       ├── sample_submission.csv
+```
+please in second folder run:
+```bash
+python3 generate-lyft-train-val-secnes.py --train_root_path=your_train_root_path --test_root_path=your_test_root_path
+```
+to generate scene splitting and run:
+```bash
+python3 create_data.py lyft_data_prep --root_path=your_train_root_path --version="lyft-trainval" --dataset_name="MyLyftDataset" --max_sweeps=10
+```
+```bash
+python3 create_data.py lyft_data_prep --root_path=your_test_root_path --version="lyft-test" --dataset_name="MyLyftDataset" --max_sweeps=10
+```
 to generate dataset for second.
 

@@ -19,7 +19,7 @@ args = parser.parse_args()
 class GTDatabaseGenerator(KittiDataset):
     def __init__(self, root_dir, split='train', classes=args.class_name):
         super().__init__(root_dir, split=split)
-        self.gt_database = None
+        self.gt_database = None 
         if classes == 'Car':
             self.classes = ('Background', 'Car')
         elif classes == 'People':
@@ -28,6 +28,9 @@ class GTDatabaseGenerator(KittiDataset):
             self.classes = ('Background', 'Pedestrian')
         elif classes == 'Cyclist':
             self.classes = ('Background', 'Cyclist')
+        elif classes == 'Lyft':
+            self.self_define_dataset = True
+            self.classes = ["Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle"]
         else:
             assert False, "Invalid classes: %s" % classes
 
@@ -41,8 +44,10 @@ class GTDatabaseGenerator(KittiDataset):
         valid_obj_list = []
         for obj in obj_list:
             if obj.cls_type not in self.classes:
+                # print(obj.cls_type)
                 continue
-            if obj.level_str not in ['Easy', 'Moderate', 'Hard']:
+            if obj.level_str not in ['Easy', 'Moderate', 'Hard'] and not self.self_define_dataset:
+                # print(obj.level_str)
                 continue
             valid_obj_list.append(obj)
 

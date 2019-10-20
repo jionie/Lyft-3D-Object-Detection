@@ -45,11 +45,15 @@ def generating_scenes_kitti(train_root_path, test_root_path):
     with open(Path(train_root_path) / "ImageSets/train.txt", "w") as f:
         for item in train_scenes:
             item = item.split("/")[-1].split(".")[0]
+            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+                continue
             f.write("%s\n" % item)
             
     with open(Path(train_root_path) / "ImageSets/val.txt", "w") as f:
         for item in val_scenes:
             item = item.split("/")[-1].split(".")[0]
+            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+                continue
             f.write("%s\n" % item)
             
     with open(Path(test_root_path) / "ImageSets/test.txt", "w") as f:

@@ -141,7 +141,7 @@ __C.RCNN.NMS_THRESH = 0.1
 # general training config
 __C.TRAIN = edict()
 __C.TRAIN.SPLIT = 'train'
-__C.TRAIN.VAL_SPLIT = 'smallval'
+__C.TRAIN.VAL_SPLIT = 'val'
 
 __C.TRAIN.LR = 0.002
 __C.TRAIN.LR_CLIP = 0.00001
@@ -173,7 +173,7 @@ __C.TRAIN.RPN_DISTANCE_BASED_PROPOSE = True
 
 
 __C.TEST = edict()
-__C.TEST.SPLIT = 'val'
+__C.TEST.SPLIT = 'test'
 __C.TEST.RPN_PRE_NMS_TOP_N = 9000
 __C.TEST.RPN_POST_NMS_TOP_N = 300
 __C.TEST.RPN_NMS_THRESH = 0.7

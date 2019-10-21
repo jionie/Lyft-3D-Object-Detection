@@ -1,4 +1,4 @@
-CLASSES: Car
+CLASSES: Lyft
 
 INCLUDE_SIMILAR_TYPE: True
 
@@ -8,7 +8,7 @@ AUG_METHOD_LIST: ['rotation', 'scaling', 'flip']
 AUG_METHOD_PROB: [1.0, 1.0, 0.5]
 AUG_ROT_RANGE: 18
 
-GT_AUG_ENABLED: True
+GT_AUG_ENABLED: False
 GT_EXTRA_NUM: 15
 GT_AUG_RAND_NUM: True
 GT_AUG_APPLY_PROB: 1.0
@@ -128,7 +128,7 @@ RCNN:
 # general training config
 TRAIN:
     SPLIT: train
-    VAL_SPLIT: smallval
+    VAL_SPLIT: val
 
     LR: 0.002
     LR_CLIP: 0.00001

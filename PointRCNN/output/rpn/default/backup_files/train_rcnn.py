@@ -36,8 +36,7 @@ parser.add_argument("--rpn_ckpt", type=str, default=None, help="specify the well
 parser.add_argument('--data_root', type=str, \
     default='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root', \
         help='specify the data root for training')
-parser.add_argument("--gt_database", type=str, \
-    default='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/gt_database/train_gt_database_3level_emergency_vehicle.pkl',
+parser.add_argument("--gt_database", type=str, default='gt_database/train_gt_database_3level_Car.pkl',
                     help='generated gt database for augmentation')
 parser.add_argument("--rcnn_training_roi_dir", type=str, default=None,
                     help='specify the saved rois for rcnn training when using rcnn_offline mode')
@@ -151,29 +150,28 @@ if __name__ == "__main__":
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
     cfg.TAG = os.path.splitext(os.path.basename(args.cfg_file))[0]
-    
-    if args.output_dir is not None:
-        root_result_dir = args.output_dir
 
     if args.train_mode == 'rpn':
         cfg.RPN.ENABLED = True
         cfg.RCNN.ENABLED = False
-        root_result_dir = os.path.join(args.output_dir, 'rpn', cfg.TAG)
+        root_result_dir = os.path.join('../', 'output', 'rpn', cfg.TAG)
     elif args.train_mode == 'rcnn':
         cfg.RCNN.ENABLED = True
         cfg.RPN.ENABLED = cfg.RPN.FIXED = True
-        root_result_dir = os.path.join(args.output_dir, 'rcnn', cfg.TAG)
+        root_result_dir = os.path.join('../', 'output', 'rcnn', cfg.TAG)
     elif args.train_mode == 'rcnn_offline':
         cfg.RCNN.ENABLED = True
         cfg.RPN.ENABLED = False
-        root_result_dir = os.path.join(args.output_dir, 'rcnn', cfg.TAG)
+        root_result_dir = os.path.join('../', 'output', 'rcnn', cfg.TAG)
     else:
         raise NotImplementedError
 
+    if args.output_dir is not None:
+        root_result_dir = args.output_dir
     os.makedirs(root_result_dir, exist_ok=True)
-    
-    log_file_path = os.path.join(root_result_dir, 'log_train.txt')
-    logger = create_logger(log_file_path)
+
+    log_file = os.path.join(root_result_dir, 'log_train.txt')
+    logger = create_logger(log_file)
     logger.info('**********************Start logging**********************')
 
     # log to file

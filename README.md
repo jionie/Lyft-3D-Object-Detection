@@ -42,7 +42,7 @@ python3 generate_gt_database.py --root_dir "*/train_root" --save_dir "*/train_ro
 python3 generate_gt_database.py --root_dir "*/test_root" --save_dir "*/test_root/KITTI/gt_database" --class_name Lyft --split test
 
 ```
-Training rpn, (apex doesn't support, will have bugs), you can choose different optimizer in "cfgs/default.yaml", default is ranger + CosineAnealing, for PointRCNN repo default is adamonectcle.
+Training rpn, (apex doesn't support, will have bugs), you can choose different optimizer in "cfgs/default.yaml", default is ranger + CosineAnealing, for PointRCNN repo default is adamonectcle. To train part of train set, please change train in "cfgs/default.yaml", otherwise whole dataset will cost large memory and you can't use large num_workers for dataloader (GPU utils will be low.
 ```bash
 python3 train_rcnn.py --cfg_file cfgs/default.yaml --batch_size 16 --train_mode rpn --epochs 200 --data_root "*/train_root" --gt_database "*/train_root/KITTI/gt_database/train_gt_database_3level_emergency_vehicle.pkl" --output "*/train_root/KITTI/output"
 python3 train_rcnn.py --cfg_file cfgs/default.yaml --batch_size 16 --valid_batch_size 32 --train_mode rpn --epochs 100 --data_root "*/train_root" --gt_database "*/train_root/KITTI/gt_database/train_gt_database_3level_emergency_vehicle.pkl" --output "*/train_root/KITTI/output" --pretrain_model "*/train_root/KITTI/output/rpn/default/ckpt/*.pth" --rpn_ckpt "*/train_root/KITTI/output/rpn/default/ckpt/*.pth"--start_epoch *

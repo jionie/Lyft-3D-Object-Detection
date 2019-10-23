@@ -33,6 +33,8 @@ def generating_scenes_kitti(train_root_path, test_root_path):
 
     random.shuffle(all_scenes)
     train_scenes = all_scenes[:int(5 * len(all_scenes) / 6)]
+    train_scenes_part_1 = train_scenes[:int(len(train_scenes) / 2)]
+    train_scenes_part_2 = train_scenes[int(len(train_scenes) / 2):]
     val_scenes = all_scenes[int(5 * len(all_scenes) / 6):]
 
     if not os.path.exists(Path(train_root_path) / "ImageSets"):
@@ -44,6 +46,20 @@ def generating_scenes_kitti(train_root_path, test_root_path):
     ############################ save splitting result
     with open(Path(train_root_path) / "ImageSets/train.txt", "w") as f:
         for item in train_scenes:
+            item = item.split("/")[-1].split(".")[0]
+            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+                continue
+            f.write("%s\n" % item)
+            
+    with open(Path(train_root_path) / "ImageSets/train_part_1.txt", "w") as f:
+        for item in train_scenes_part_1:
+            item = item.split("/")[-1].split(".")[0]
+            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+                continue
+            f.write("%s\n" % item)
+            
+    with open(Path(train_root_path) / "ImageSets/train_part_2.txt", "w") as f:
+        for item in train_scenes_part_2:
             item = item.split("/")[-1].split(".")[0]
             if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
                 continue

@@ -17,18 +17,26 @@ from lib.config import cfg, cfg_from_file, save_config_to_file
 import tools.train_utils.train_utils as train_utils
 from tools.train_utils.fastai_optim import OptimWrapper
 from tools.train_utils import learning_schedules_fastai as lsf
+from tools.train_utils.train_utils import load_checkpoint
+
+from apex import amp
+from ranger import *
 
 
 parser = argparse.ArgumentParser(description="arg parser")
 parser.add_argument('--cfg_file', type=str, default='cfgs/default.yaml', help='specify the config for training')
 parser.add_argument("--train_mode", type=str, default='rpn', required=True, help="specify the training mode")
 parser.add_argument("--batch_size", type=int, default=16, required=True, help="batch size for training")
+parser.add_argument("--valid_batch_size", type=int, default=32, required=True, help="batch size for validating")
 parser.add_argument("--epochs", type=int, default=200, required=True, help="Number of epochs to train for")
 
-parser.add_argument('--workers', type=int, default=0, help='number of workers for dataloader')
-parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
+parser.add_argument("--start_epoch", type=int, default=0, help="Start epoch to train for")
+parser.add_argument("--start_it", type=int, default=0, help="Start iteration to train for")
+parser.add_argument('--workers', type=int, default=8, help='number of workers for dataloader')
+parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
 parser.add_argument('--output_dir', type=str, default=None, help='specify an output directory if needed')
 parser.add_argument('--mgpus', action='store_true', default=False, help='whether to use multiple gpu')
+parser.add_argument('--apex', action='store_true', default=False, help='whether to train with mixed precision')
 
 parser.add_argument("--ckpt", type=str, default=None, help="continue training from this checkpoint")
 parser.add_argument("--rpn_ckpt", type=str, default=None, help="specify the well-trained rpn checkpoint")
@@ -39,6 +47,7 @@ parser.add_argument('--data_root', type=str, \
 parser.add_argument("--gt_database", type=str, \
     default='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/gt_database/train_gt_database_3level_emergency_vehicle.pkl',
                     help='generated gt database for augmentation')
+parser.add_argument('--pretrain_model', type=str, default=None, help='pretrain model path')
 parser.add_argument("--rcnn_training_roi_dir", type=str, default=None,
                     help='specify the saved rois for rcnn training when using rcnn_offline mode')
 parser.add_argument("--rcnn_training_feature_dir", type=str, default=None,
@@ -82,7 +91,7 @@ def create_dataloader(logger):
                                     classes=cfg.CLASSES,
                                     rcnn_eval_roi_dir=args.rcnn_eval_roi_dir,
                                     rcnn_eval_feature_dir=args.rcnn_eval_feature_dir)
-        test_loader = DataLoader(test_set, batch_size=1, shuffle=True, pin_memory=False,
+        test_loader = DataLoader(test_set, batch_size=args.valid_batch_size, shuffle=True, pin_memory=False,
                                  num_workers=args.workers, collate_fn=test_set.collate_batch)
     else:
         test_loader = None
@@ -96,6 +105,8 @@ def create_optimizer(model):
     elif cfg.TRAIN.OPTIMIZER == 'sgd':
         optimizer = optim.SGD(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY,
                               momentum=cfg.TRAIN.MOMENTUM)
+    elif cfg.TRAIN.OPTIMIZER == 'ranger':
+        optimizer = Ranger(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
     elif cfg.TRAIN.OPTIMIZER == 'adam_onecycle':
         def children(m: nn.Module):
             return list(m.children())
@@ -121,7 +132,7 @@ def create_optimizer(model):
     return optimizer
 
 
-def create_scheduler(optimizer, total_steps, last_epoch):
+def create_scheduler(optimizer, total_steps, total_epochs, last_epoch):
     def lr_lbmd(cur_epoch):
         cur_decay = 1
         for decay_step in cfg.TRAIN.DECAY_STEP_LIST:
@@ -142,9 +153,28 @@ def create_scheduler(optimizer, total_steps, last_epoch):
         )
     else:
         lr_scheduler = lr_sched.LambdaLR(optimizer, lr_lbmd, last_epoch=last_epoch)
+        lr_scheduler = lr_sched.CosineAnnealingLR(optimizer, total_epochs, eta_min=0, last_epoch=last_epoch)
 
     bnm_scheduler = train_utils.BNMomentumScheduler(model, bnm_lmbd, last_epoch=last_epoch)
     return lr_scheduler, bnm_scheduler
+
+def load_part_ckpt(model, filename, logger, total_keys=-1):
+    if os.path.isfile(filename):
+        logger.info("==> Loading part model from checkpoint '{}'".format(filename))
+        checkpoint = torch.load(filename)
+        model_state = checkpoint['model_state']
+
+        update_model_state = {key: val for key, val in model_state.items() if key in model.state_dict()}
+        state_dict = model.state_dict()
+        state_dict.update(update_model_state)
+        model.load_state_dict(state_dict)
+
+        update_keys = update_model_state.keys().__len__()
+        if update_keys == 0:
+            raise RuntimeError
+        logger.info("==> Done (loaded %d/%d)" % (update_keys, total_keys))
+    else:
+        raise FileNotFoundError
 
 
 if __name__ == "__main__":
@@ -198,22 +228,31 @@ if __name__ == "__main__":
     # create dataloader & network & optimizer
     train_loader, test_loader = create_dataloader(logger)
     model = PointRCNN(num_classes=train_loader.dataset.num_class, use_xyz=True, mode='TRAIN')
+    
+    model.cuda()
+    
     optimizer = create_optimizer(model)
 
     if args.mgpus:
         model = nn.DataParallel(model)
-    model.cuda()
-
+    
+    if args.apex:
+        model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
+        
     # load checkpoint if it is possible
-    start_epoch = it = 0
+    if args.pretrain_model != None:
+        _, _ = load_checkpoint(model=model, optimizer=optimizer, filename=args.pretrain_model, logger=logger)
+    start_epoch = args.start_epoch
+    it = args.start_it
     last_epoch = -1
+    
     if args.ckpt is not None:
         pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
         it, start_epoch = train_utils.load_checkpoint(pure_model, optimizer, filename=args.ckpt, logger=logger)
         last_epoch = start_epoch + 1
 
     lr_scheduler, bnm_scheduler = create_scheduler(optimizer, total_steps=len(train_loader) * args.epochs,
-                                                   last_epoch=last_epoch)
+                                                   total_epochs=args.epochs, last_epoch=last_epoch)
 
     if args.rpn_ckpt is not None:
         pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
@@ -234,6 +273,7 @@ if __name__ == "__main__":
         model,
         train_functions.model_joint_fn_decorator(),
         optimizer,
+        args.apex,
         ckpt_dir=ckpt_dir,
         lr_scheduler=lr_scheduler,
         bnm_scheduler=bnm_scheduler,

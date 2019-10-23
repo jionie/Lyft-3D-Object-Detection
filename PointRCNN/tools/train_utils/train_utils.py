@@ -82,7 +82,7 @@ def load_checkpoint(model=None, optimizer=None, filename='checkpoint', logger=cu
         epoch = checkpoint['epoch'] if 'epoch' in checkpoint.keys() else -1
         it = checkpoint.get('it', 0.0)
         if model is not None and checkpoint['model_state'] is not None:
-            model.load_state_dict(checkpoint['model_state'])
+            model.load_state_dict(checkpoint['model_state'], strict=False)
         if optimizer is not None and checkpoint['optimizer_state'] is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state'])
         logger.info("==> Done")
@@ -112,11 +112,11 @@ def load_part_ckpt(model, filename, logger=cur_logger, total_keys=-1):
 
 
 class Trainer(object):
-    def __init__(self, model, model_fn, optimizer, ckpt_dir, lr_scheduler, bnm_scheduler,
+    def __init__(self, model, model_fn, optimizer, apex, ckpt_dir, lr_scheduler, bnm_scheduler,
                  model_fn_eval, tb_log, eval_frequency=1, lr_warmup_scheduler=None, warmup_epoch=-1,
                  grad_norm_clip=1.0):
-        self.model, self.model_fn, self.optimizer, self.lr_scheduler, self.bnm_scheduler, self.model_fn_eval = \
-            model, model_fn, optimizer, lr_scheduler, bnm_scheduler, model_fn_eval
+        self.model, self.model_fn, self.optimizer, self.apex, self.lr_scheduler, self.bnm_scheduler, self.model_fn_eval = \
+            model, model_fn, optimizer, apex, lr_scheduler, bnm_scheduler, model_fn_eval
 
         self.ckpt_dir = ckpt_dir
         self.eval_frequency = eval_frequency
@@ -131,7 +131,12 @@ class Trainer(object):
         self.optimizer.zero_grad()
         loss, tb_dict, disp_dict = self.model_fn(self.model, batch)
 
-        loss.backward()
+        if (self.apex):
+            with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            loss.backward()
+            
         clip_grad_norm_(self.model.parameters(), self.grad_norm_clip)
         self.optimizer.step()
 

@@ -17,7 +17,7 @@ from lib.config import cfg, cfg_from_file, save_config_to_file
 import tools.train_utils.train_utils as train_utils
 from tools.train_utils.fastai_optim import OptimWrapper
 from tools.train_utils import learning_schedules_fastai as lsf
-from tools.train_utils.train_utils import load_checkpoint
+from tools.train_utils.train_utils import load_checkpoint, load_part_ckpt
 
 from apex import amp
 from ranger import *
@@ -32,7 +32,7 @@ parser.add_argument("--epochs", type=int, default=200, required=True, help="Numb
 
 parser.add_argument("--start_epoch", type=int, default=0, help="Start epoch to train for")
 parser.add_argument("--start_it", type=int, default=0, help="Start iteration to train for")
-parser.add_argument('--workers', type=int, default=8, help='number of workers for dataloader')
+parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
 parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
 parser.add_argument('--output_dir', type=str, default=None, help='specify an output directory if needed')
 parser.add_argument('--mgpus', action='store_true', default=False, help='whether to use multiple gpu')
@@ -158,24 +158,6 @@ def create_scheduler(optimizer, total_steps, total_epochs, last_epoch):
     bnm_scheduler = train_utils.BNMomentumScheduler(model, bnm_lmbd, last_epoch=last_epoch)
     return lr_scheduler, bnm_scheduler
 
-def load_part_ckpt(model, filename, logger, total_keys=-1):
-    if os.path.isfile(filename):
-        logger.info("==> Loading part model from checkpoint '{}'".format(filename))
-        checkpoint = torch.load(filename)
-        model_state = checkpoint['model_state']
-
-        update_model_state = {key: val for key, val in model_state.items() if key in model.state_dict()}
-        state_dict = model.state_dict()
-        state_dict.update(update_model_state)
-        model.load_state_dict(state_dict)
-
-        update_keys = update_model_state.keys().__len__()
-        if update_keys == 0:
-            raise RuntimeError
-        logger.info("==> Done (loaded %d/%d)" % (update_keys, total_keys))
-    else:
-        raise FileNotFoundError
-
 
 if __name__ == "__main__":
     if args.cfg_file is not None:
@@ -241,7 +223,15 @@ if __name__ == "__main__":
         
     # load checkpoint if it is possible
     if args.pretrain_model != None:
-        _, _ = load_checkpoint(model=model, optimizer=optimizer, filename=args.pretrain_model, logger=logger)
+        _, _ = load_checkpoint(model=model, optimizer=None, filename=args.pretrain_model, logger=logger)
+        
+        total_keys = model.state_dict().keys().__len__()
+        if cfg.RPN.ENABLED and args.rpn_ckpt is not None:
+            load_part_ckpt(model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
+
+        if cfg.RCNN.ENABLED and args.rcnn_ckpt is not None:
+            load_part_ckpt(model, filename=args.rcnn_ckpt, logger=logger, total_keys=total_keys)
+        
     start_epoch = args.start_epoch
     it = args.start_it
     last_epoch = -1

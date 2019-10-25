@@ -172,7 +172,7 @@ class Trainer(object):
 
         return total_loss / count, eval_dict, cur_performance
 
-    def train(self, start_it, start_epoch, n_epochs, train_loader, test_loader=None, ckpt_save_interval=5,
+    def train(self, curr_round, curr_part, start_it, start_epoch, n_epochs, train_loader, test_loader=None, ckpt_save_interval=5,
               lr_scheduler_each_iter=False):
         eval_frequency = self.eval_frequency if self.eval_frequency > 0 else 1
 
@@ -221,7 +221,7 @@ class Trainer(object):
                 # save trained model
                 trained_epoch = epoch + 1
                 if trained_epoch % ckpt_save_interval == 0:
-                    ckpt_name = os.path.join(self.ckpt_dir, 'checkpoint_epoch_%d' % trained_epoch)
+                    ckpt_name = os.path.join(self.ckpt_dir, 'checkpoint_round_%d_part_%d_epoch_%d' % (curr_round, curr_part, trained_epoch))
                     save_checkpoint(
                         checkpoint_state(self.model, self.optimizer, trained_epoch, it), filename=ckpt_name,
                     )
@@ -238,8 +238,8 @@ class Trainer(object):
                             for key, val in eval_dict.items():
                                 self.tb_log.add_scalar('val_' + key, val, it)
 
-                pbar.close()
-                pbar = tqdm.tqdm(total=len(train_loader), leave=False, desc='train')
-                pbar.set_postfix(dict(total_it=it))
+                # pbar.close()
+                # pbar = tqdm.tqdm(total=len(train_loader), leave=False, desc='train')
+                # pbar.set_postfix(dict(total_it=it))
 
         return None

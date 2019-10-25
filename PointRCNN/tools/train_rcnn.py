@@ -28,12 +28,15 @@ parser.add_argument('--cfg_file', type=str, default='cfgs/default.yaml', help='s
 parser.add_argument("--train_mode", type=str, default='rpn', required=True, help="specify the training mode")
 parser.add_argument("--batch_size", type=int, default=16, required=True, help="batch size for training")
 parser.add_argument("--valid_batch_size", type=int, default=32, required=True, help="batch size for validating")
-parser.add_argument("--epochs", type=int, default=200, required=True, help="Number of epochs to train for")
+parser.add_argument("--epochs", type=int, default=200, required=True, help="Number of epochs to train")
+parser.add_argument("--sub_epochs", type=int, default=10, required=True, help="Number of epochs to train for each subpart training")
 
+parser.add_argument("--start_round", type=int, default=0, help="Start round to train for")
+parser.add_argument("--start_part", type=int, default=0, help="Start part to train for")
 parser.add_argument("--start_epoch", type=int, default=0, help="Start epoch to train for")
 parser.add_argument("--start_it", type=int, default=0, help="Start iteration to train for")
 parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
-parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
+parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
 parser.add_argument('--output_dir', type=str, default=None, help='specify an output directory if needed')
 parser.add_argument('--mgpus', action='store_true', default=False, help='whether to use multiple gpu')
 parser.add_argument('--apex', action='store_true', default=False, help='whether to train with mixed precision')
@@ -207,6 +210,7 @@ if __name__ == "__main__":
     # tensorboard log
     tb_log = SummaryWriter(log_dir=os.path.join(root_result_dir, 'tensorboard'))
 
+    
     # create dataloader & network & optimizer
     train_loader, test_loader = create_dataloader(logger)
     model = PointRCNN(num_classes=train_loader.dataset.num_class, use_xyz=True, mode='TRAIN')
@@ -222,6 +226,11 @@ if __name__ == "__main__":
         model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
         
     # load checkpoint if it is possible
+    
+    start_epoch = args.start_epoch
+    it = args.start_it
+    last_epoch = -1
+    
     if args.pretrain_model != None:
         _, _ = load_checkpoint(model=model, optimizer=None, filename=args.pretrain_model, logger=logger)
         
@@ -231,58 +240,66 @@ if __name__ == "__main__":
 
         if cfg.RCNN.ENABLED and args.rcnn_ckpt is not None:
             load_part_ckpt(model, filename=args.rcnn_ckpt, logger=logger, total_keys=total_keys)
-        
-    start_epoch = args.start_epoch
-    it = args.start_it
-    last_epoch = -1
-    
+            
     if args.ckpt is not None:
-        pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
-        it, start_epoch = train_utils.load_checkpoint(pure_model, optimizer, filename=args.ckpt, logger=logger)
-        last_epoch = start_epoch + 1
-
-    lr_scheduler, bnm_scheduler = create_scheduler(optimizer, total_steps=len(train_loader) * args.epochs,
-                                                   total_epochs=args.epochs, last_epoch=last_epoch)
-
+            pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+            it, start_epoch = train_utils.load_checkpoint(pure_model, optimizer, filename=args.ckpt, logger=logger)
+            last_epoch = start_epoch + 1
+            
     if args.rpn_ckpt is not None:
-        pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
-        total_keys = pure_model.state_dict().keys().__len__()
-        train_utils.load_part_ckpt(pure_model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
+            pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+            total_keys = pure_model.state_dict().keys().__len__()
+            train_utils.load_part_ckpt(pure_model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
+    
+    # training part 
+    trainin_part = ['train_part_3', 'train_part_4', 'train_part_1', 'train_part_2']     
+    for i in range(args.epochs // args.sub_epochs * len(trainin_part)):
+        
+        if (i < args.start_round * len(trainin_part) + args.start_part):
+            continue
 
-    if cfg.TRAIN.LR_WARMUP and cfg.TRAIN.OPTIMIZER != 'adam_onecycle':
-        lr_warmup_scheduler = train_utils.CosineWarmupLR(optimizer, T_max=cfg.TRAIN.WARMUP_EPOCH * len(train_loader),
-                                                      eta_min=cfg.TRAIN.WARMUP_MIN)
-    else:
-        lr_warmup_scheduler = None
+        lr_scheduler, bnm_scheduler = create_scheduler(optimizer, total_steps=len(train_loader) * args.sub_epochs,
+                                                    total_epochs=args.sub_epochs, last_epoch=last_epoch)
 
-    # start training
-    logger.info('**********************Start training**********************')
-    ckpt_dir = os.path.join(root_result_dir, 'ckpt')
-    os.makedirs(ckpt_dir, exist_ok=True)
-    trainer = train_utils.Trainer(
-        model,
-        train_functions.model_joint_fn_decorator(),
-        optimizer,
-        args.apex,
-        ckpt_dir=ckpt_dir,
-        lr_scheduler=lr_scheduler,
-        bnm_scheduler=bnm_scheduler,
-        model_fn_eval=train_functions.model_joint_fn_decorator(),
-        tb_log=tb_log,
-        eval_frequency=1,
-        lr_warmup_scheduler=lr_warmup_scheduler,
-        warmup_epoch=cfg.TRAIN.WARMUP_EPOCH,
-        grad_norm_clip=cfg.TRAIN.GRAD_NORM_CLIP
-    )
+        if cfg.TRAIN.LR_WARMUP and cfg.TRAIN.OPTIMIZER != 'adam_onecycle':
+            lr_warmup_scheduler = train_utils.CosineWarmupLR(optimizer, T_max=cfg.TRAIN.WARMUP_EPOCH * len(train_loader),
+                                                        eta_min=cfg.TRAIN.WARMUP_MIN)
+        else:
+            lr_warmup_scheduler = None
 
-    trainer.train(
-        it,
-        start_epoch,
-        args.epochs,
-        train_loader,
-        test_loader,
-        ckpt_save_interval=args.ckpt_save_interval,
-        lr_scheduler_each_iter=(cfg.TRAIN.OPTIMIZER == 'adam_onecycle')
-    )
+        # start training
+        logger.info('**********************Start training**********************')
+        ckpt_dir = os.path.join(root_result_dir, 'ckpt')
+        os.makedirs(ckpt_dir, exist_ok=True)
+        trainer = train_utils.Trainer(
+            model,
+            train_functions.model_joint_fn_decorator(),
+            optimizer,
+            args.apex,
+            ckpt_dir=ckpt_dir,
+            lr_scheduler=lr_scheduler,
+            bnm_scheduler=bnm_scheduler,
+            model_fn_eval=train_functions.model_joint_fn_decorator(),
+            tb_log=tb_log,
+            eval_frequency=1,
+            lr_warmup_scheduler=lr_warmup_scheduler,
+            warmup_epoch=cfg.TRAIN.WARMUP_EPOCH,
+            grad_norm_clip=cfg.TRAIN.GRAD_NORM_CLIP
+        )
 
-    logger.info('**********************End training**********************')
+        trainer.train(
+            i // len(trainin_part), 
+            i % len(trainin_part),
+            it,
+            start_epoch,
+            args.sub_epochs,
+            train_loader,
+            test_loader,
+            ckpt_save_interval=args.ckpt_save_interval,
+            lr_scheduler_each_iter=(cfg.TRAIN.OPTIMIZER == 'adam_onecycle')
+        )
+
+        logger.info('**********************End training**********************')
+        
+        cfg.TRAIN.SPLIT = trainin_part[i % len(trainin_part)]
+        train_loader, test_loader = create_dataloader(logger)

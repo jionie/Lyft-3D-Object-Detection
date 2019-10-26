@@ -259,6 +259,10 @@ if __name__ == "__main__":
         
         if (i < args.start_round * len(trainin_part) + args.start_part):
             continue
+        
+        cfg.TRAIN.SPLIT = trainin_part[i % len(trainin_part)]
+        args.gt_database = gt_database_folder + '/' + trainin_part[i % len(trainin_part)] + '_gt_database_3level_emergency_vehicle.pkl'
+        train_loader, test_loader = create_dataloader(logger, args.gt_database)
 
         lr_scheduler, bnm_scheduler = create_scheduler(optimizer, total_steps=len(train_loader) * args.sub_epochs,
                                                     total_epochs=args.sub_epochs, last_epoch=last_epoch)
@@ -302,7 +306,3 @@ if __name__ == "__main__":
         )
 
         logger.info('**********************End training**********************')
-        
-        cfg.TRAIN.SPLIT = trainin_part[i % len(trainin_part)]
-        args.gt_database = gt_database_folder + '/' + trainin_part[i % len(trainin_part)] + '_gt_database_3level_emergency_vehicle.pkl'
-        train_loader, test_loader = create_dataloader(logger, args.gt_database)

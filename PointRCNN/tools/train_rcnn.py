@@ -74,7 +74,7 @@ def create_logger(log_file):
     return logging.getLogger(__name__)
 
 
-def create_dataloader(logger):
+def create_dataloader(logger, gt_database):
     DATA_PATH = args.data_root
 
     # create dataloader
@@ -83,7 +83,7 @@ def create_dataloader(logger):
                                  classes=cfg.CLASSES,
                                  rcnn_training_roi_dir=args.rcnn_training_roi_dir,
                                  rcnn_training_feature_dir=args.rcnn_training_feature_dir,
-                                 gt_database_dir=args.gt_database)
+                                 gt_database_dir=gt_database)
     train_loader = DataLoader(train_set, batch_size=args.batch_size, pin_memory=False,
                               num_workers=args.workers, shuffle=True, collate_fn=train_set.collate_batch,
                               drop_last=True)
@@ -212,7 +212,10 @@ if __name__ == "__main__":
 
     
     # create dataloader & network & optimizer
-    train_loader, test_loader = create_dataloader(logger)
+    trainin_part = ['train_part_3', 'train_part_4', 'train_part_1', 'train_part_2'] 
+    gt_database_folder = os.path.split(args.gt_database)[:-1][0]
+    args.gt_database = gt_database_folder + '/' + trainin_part[0] + '_gt_database_3level_emergency_vehicle.pkl'
+    train_loader, test_loader = create_dataloader(logger, args.gt_database)
     model = PointRCNN(num_classes=train_loader.dataset.num_class, use_xyz=True, mode='TRAIN')
     
     model.cuda()
@@ -251,8 +254,7 @@ if __name__ == "__main__":
             total_keys = pure_model.state_dict().keys().__len__()
             train_utils.load_part_ckpt(pure_model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
     
-    # training part 
-    trainin_part = ['train_part_3', 'train_part_4', 'train_part_1', 'train_part_2']     
+    # training part     
     for i in range(args.epochs // args.sub_epochs * len(trainin_part)):
         
         if (i < args.start_round * len(trainin_part) + args.start_part):
@@ -302,4 +304,5 @@ if __name__ == "__main__":
         logger.info('**********************End training**********************')
         
         cfg.TRAIN.SPLIT = trainin_part[i % len(trainin_part)]
-        train_loader, test_loader = create_dataloader(logger)
+        args.gt_database = gt_database_folder + '/' + trainin_part[i % len(trainin_part)] + '_gt_database_3level_emergency_vehicle.pkl'
+        train_loader, test_loader = create_dataloader(logger, args.gt_database)

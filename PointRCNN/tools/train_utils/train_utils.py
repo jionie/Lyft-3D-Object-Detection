@@ -124,11 +124,11 @@ class Trainer(object):
         self.lr_warmup_scheduler = lr_warmup_scheduler
         self.warmup_epoch = warmup_epoch
         self.grad_norm_clip = grad_norm_clip
+        self.eval_log_dir = os.path.split(ckpt_dir)[:-1][0] + 'eval.txt'
 
     def _train_it(self, batch):
-        self.model.train()
-
         self.optimizer.zero_grad()
+        # print(batch.keys())
         loss, tb_dict, disp_dict = self.model_fn(self.model, batch)
 
         if (self.apex):
@@ -149,15 +149,19 @@ class Trainer(object):
         total_loss = count = 0.0
 
         # eval one epoch
-        for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader), leave=False, desc='val'):
-            self.optimizer.zero_grad()
+        with torch.no_grad():    
+            
+            torch.cuda.empty_cache()
+            
+            for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader), leave=False, desc='val'):
+                self.optimizer.zero_grad()
 
-            loss, tb_dict, disp_dict = self.model_fn_eval(self.model, data)
+                loss, tb_dict, disp_dict = self.model_fn_eval(self.model, data)
 
-            total_loss += loss.item()
-            count += 1
-            for k, v in tb_dict.items():
-                eval_dict[k] = eval_dict.get(k, 0) + v
+                total_loss += loss.item()
+                count += 1
+                for k, v in tb_dict.items():
+                    eval_dict[k] = eval_dict.get(k, 0) + v
 
         # statistics this epoch
         for k, v in eval_dict.items():
@@ -181,6 +185,24 @@ class Trainer(object):
                 tqdm.tqdm(total=len(train_loader), leave=False, desc='train') as pbar:
 
             for epoch in tbar:
+                
+                # eval one epoch
+                if (epoch != 0) and (epoch % eval_frequency) == 0:
+                    pbar.close()
+                    if test_loader is not None:
+                        with torch.set_grad_enabled(False):
+                            val_loss, eval_dict, cur_performance = self.eval_epoch(test_loader)
+
+                        if self.tb_log is not None:
+                            self.tb_log.add_scalar('val_loss', val_loss, it)
+                            for key, val in eval_dict.items():
+                                self.tb_log.add_scalar('val_' + key, val, it)
+                    
+                    log_file = open(self.eval_log_dir, "w+")    
+                    print("round: ", curr_round, " part: ", curr_part, " val loss: ", val_loss) 
+                    print("round: ", curr_round, " part: ", curr_part, " val loss: ", val_loss, file=log_file)
+                    log_file.close()
+                
                 if self.lr_scheduler is not None and self.warmup_epoch <= epoch and (not lr_scheduler_each_iter):
                     self.lr_scheduler.step(epoch)
 
@@ -189,6 +211,8 @@ class Trainer(object):
                     self.tb_log.add_scalar('bn_momentum', self.bnm_scheduler.lmbd(epoch), it)
 
                 # train one epoch
+                self.model.train()
+                torch.cuda.empty_cache()
                 for cur_it, batch in enumerate(train_loader):
                     if lr_scheduler_each_iter:
                         self.lr_scheduler.step(it)
@@ -226,20 +250,8 @@ class Trainer(object):
                         checkpoint_state(self.model, self.optimizer, trained_epoch, it), filename=ckpt_name,
                     )
 
-                # eval one epoch
-                if (epoch % eval_frequency) == 0:
-                    pbar.close()
-                    if test_loader is not None:
-                        with torch.set_grad_enabled(False):
-                            val_loss, eval_dict, cur_performance = self.eval_epoch(test_loader)
-
-                        if self.tb_log is not None:
-                            self.tb_log.add_scalar('val_loss', val_loss, it)
-                            for key, val in eval_dict.items():
-                                self.tb_log.add_scalar('val_' + key, val, it)
-
-                # pbar.close()
-                # pbar = tqdm.tqdm(total=len(train_loader), leave=False, desc='train')
-                # pbar.set_postfix(dict(total_it=it))
+                pbar.close()
+                pbar = tqdm.tqdm(total=len(train_loader), leave=False, desc='train')
+                pbar.set_postfix(dict(total_it=it))
 
         return None

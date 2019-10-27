@@ -35,7 +35,8 @@ parser.add_argument("--start_round", type=int, default=0, help="Start round to t
 parser.add_argument("--start_part", type=int, default=0, help="Start part to train for")
 parser.add_argument("--start_epoch", type=int, default=0, help="Start epoch to train for")
 parser.add_argument("--start_it", type=int, default=0, help="Start iteration to train for")
-parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
+parser.add_argument('--workers', type=int, default=4, help='number of workers for train dataloader')
+parser.add_argument('--eval_workers', type=int, default=0, help='number of workers for test dataloader')
 parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
 parser.add_argument('--output_dir', type=str, default=None, help='specify an output directory if needed')
 parser.add_argument('--mgpus', action='store_true', default=False, help='whether to use multiple gpu')
@@ -43,6 +44,7 @@ parser.add_argument('--apex', action='store_true', default=False, help='whether 
 
 parser.add_argument("--ckpt", type=str, default=None, help="continue training from this checkpoint")
 parser.add_argument("--rpn_ckpt", type=str, default=None, help="specify the well-trained rpn checkpoint")
+parser.add_argument("--rcnn_ckpt", type=str, default=None, help="specify the well-trained rcnn checkpoint")
 
 parser.add_argument('--data_root', type=str, \
     default='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root', \
@@ -90,12 +92,13 @@ def create_dataloader(logger, gt_database):
 
     if args.train_with_eval:
         test_set = KittiRCNNDataset(root_dir=DATA_PATH, npoints=cfg.RPN.NUM_POINTS, split=cfg.TRAIN.VAL_SPLIT, mode='EVAL',
+                                    random_select=False,
                                     logger=logger,
                                     classes=cfg.CLASSES,
                                     rcnn_eval_roi_dir=args.rcnn_eval_roi_dir,
                                     rcnn_eval_feature_dir=args.rcnn_eval_feature_dir)
-        test_loader = DataLoader(test_set, batch_size=args.valid_batch_size, shuffle=True, pin_memory=False,
-                                 num_workers=args.workers, collate_fn=test_set.collate_batch)
+        test_loader = DataLoader(test_set, batch_size=args.valid_batch_size, shuffle=False, pin_memory=False,
+                                 num_workers=args.eval_workers, collate_fn=test_set.collate_batch)
     else:
         test_loader = None
     return train_loader, test_loader
@@ -212,11 +215,20 @@ if __name__ == "__main__":
 
     
     # create dataloader & network & optimizer
-    trainin_part = ['train_part_3', 'train_part_4', 'train_part_1', 'train_part_2'] 
-    gt_database_folder = os.path.split(args.gt_database)[:-1][0]
-    args.gt_database = gt_database_folder + '/' + trainin_part[0] + '_gt_database_3level_emergency_vehicle.pkl'
-    train_loader, test_loader = create_dataloader(logger, args.gt_database)
-    model = PointRCNN(num_classes=train_loader.dataset.num_class, use_xyz=True, mode='TRAIN')
+    if cfg.CLASSES == "Lyft":
+        classes = ("Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle")
+    elif cfg.CLASSES == "Car":
+        classes = ('Background', 'Car')
+    elif cfg.CLASSES == 'People':
+        classes = ('Background', 'Pedestrian', 'Cyclist')
+    elif cfg.CLASSES == 'Pedestrian':
+        classes = ('Background', 'Pedestrian')
+    elif cfg.CLASSES == 'Cyclist':
+        classes = ('Background', 'Cyclist')
+    else:
+        assert False, "Invalid classes: %s" % cfg.CLASSES
+        
+    model = PointRCNN(num_classes=classes.__len__(), use_xyz=True, mode='TRAIN')
     
     model.cuda()
     
@@ -245,20 +257,28 @@ if __name__ == "__main__":
             load_part_ckpt(model, filename=args.rcnn_ckpt, logger=logger, total_keys=total_keys)
             
     if args.ckpt is not None:
-            pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
-            it, start_epoch = train_utils.load_checkpoint(pure_model, optimizer, filename=args.ckpt, logger=logger)
-            last_epoch = start_epoch + 1
+        pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        it, start_epoch = train_utils.load_checkpoint(pure_model, optimizer, filename=args.ckpt, logger=logger)
+        last_epoch = start_epoch + 1
             
     if args.rpn_ckpt is not None:
-            pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
-            total_keys = pure_model.state_dict().keys().__len__()
-            train_utils.load_part_ckpt(pure_model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
+        pure_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        total_keys = pure_model.state_dict().keys().__len__()
+        train_utils.load_part_ckpt(pure_model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
     
-    # training part     
+    # training part    
+    trainin_part = ['train_part_3', 'train_part_4', 'train_part_1', 'train_part_2'] 
+    gt_database_folder = os.path.split(args.gt_database)[:-1][0]
+     
     for i in range(args.epochs // args.sub_epochs * len(trainin_part)):
         
         if (i < args.start_round * len(trainin_part) + args.start_part):
             continue
+        
+        if (args.train_with_eval) and (i % len(trainin_part) == 3):
+            eval_frequency = args.sub_epochs # only eval for one round
+        else:
+            eval_frequency = args.sub_epochs + 1 # no eval
         
         cfg.TRAIN.SPLIT = trainin_part[i % len(trainin_part)]
         args.gt_database = gt_database_folder + '/' + trainin_part[i % len(trainin_part)] + '_gt_database_3level_emergency_vehicle.pkl'
@@ -287,7 +307,7 @@ if __name__ == "__main__":
             bnm_scheduler=bnm_scheduler,
             model_fn_eval=train_functions.model_joint_fn_decorator(),
             tb_log=tb_log,
-            eval_frequency=1,
+            eval_frequency=args.sub_epochs,
             lr_warmup_scheduler=lr_warmup_scheduler,
             warmup_epoch=cfg.TRAIN.WARMUP_EPOCH,
             grad_norm_clip=cfg.TRAIN.GRAD_NORM_CLIP

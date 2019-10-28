@@ -60,7 +60,18 @@ class ProposalTargetLayer(nn.Module):
         reg_valid_mask = ((batch_roi_iou > cfg.RCNN.REG_FG_THRESH) & valid_mask).long()
 
         # classification label
-        batch_cls_label = (batch_roi_iou > cfg.RCNN.CLS_FG_THRESH).long()
+        batch_gt_of_rois_cls = batch_gt_of_rois[:, :, 7]
+        batch_gt_of_rois_target = batch_gt_of_rois_cls.unsqueeze_(1).long()
+        one_hot = \
+            torch.cuda.LongTensor(batch_gt_of_rois_target.size(0), 10, batch_gt_of_rois_target.size(2)).zero_()
+        batch_gt_of_rois_one_hot = one_hot.scatter_(1, batch_gt_of_rois_target.data, 1)
+        batch_gt_of_rois_one_hot = batch_gt_of_rois_one_hot.reshape((batch_gt_of_rois_one_hot.shape[0], \
+            batch_gt_of_rois_one_hot.shape[2], \
+            batch_gt_of_rois_one_hot.shape[1]))
+        
+        # print(batch_gt_of_rois_one_hot.shape)
+        
+        batch_cls_label = (batch_gt_of_rois_one_hot > cfg.RCNN.CLS_FG_THRESH).long()
         invalid_mask = (batch_roi_iou > cfg.RCNN.CLS_BG_THRESH) & (batch_roi_iou < cfg.RCNN.CLS_FG_THRESH)
         batch_cls_label[valid_mask == 0] = -1
         batch_cls_label[invalid_mask > 0] = -1
@@ -69,7 +80,7 @@ class ProposalTargetLayer(nn.Module):
                        'pts_feature': sampled_features.view(-1, cfg.RCNN.NUM_POINTS, sampled_features.shape[3]),
                        'cls_label': batch_cls_label.view(-1),
                        'reg_valid_mask': reg_valid_mask.view(-1),
-                       'gt_of_rois': batch_gt_of_rois.view(-1, 7),
+                       'gt_of_rois': batch_gt_of_rois.view(-1, 8),
                        'gt_iou': batch_roi_iou.view(-1),
                        'roi_boxes3d': batch_rois.view(-1, 7)}
 
@@ -89,7 +100,7 @@ class ProposalTargetLayer(nn.Module):
         fg_rois_per_image = int(np.round(cfg.RCNN.FG_RATIO * cfg.RCNN.ROI_PER_IMAGE))
 
         batch_rois = gt_boxes3d.new(batch_size, cfg.RCNN.ROI_PER_IMAGE, 7).zero_()
-        batch_gt_of_rois = gt_boxes3d.new(batch_size, cfg.RCNN.ROI_PER_IMAGE, 7).zero_()
+        batch_gt_of_rois = gt_boxes3d.new(batch_size, cfg.RCNN.ROI_PER_IMAGE, 8).zero_()
         batch_roi_iou = gt_boxes3d.new(batch_size, cfg.RCNN.ROI_PER_IMAGE).zero_()
 
         for idx in range(batch_size):
@@ -218,7 +229,7 @@ class ProposalTargetLayer(nn.Module):
             temp_iou = cnt = 0
             roi_box3d = roi_boxes3d[k]
 
-            gt_box3d = gt_boxes3d[k].view(1, 7)
+            gt_box3d = gt_boxes3d[k].view(1, 8)
             aug_box3d = roi_box3d
             keep = True
             while temp_iou < pos_thresh and cnt < aug_times:

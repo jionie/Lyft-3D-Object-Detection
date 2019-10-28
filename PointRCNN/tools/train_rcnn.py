@@ -37,7 +37,7 @@ parser.add_argument("--start_epoch", type=int, default=0, help="Start epoch to t
 parser.add_argument("--start_it", type=int, default=0, help="Start iteration to train for")
 parser.add_argument('--workers', type=int, default=4, help='number of workers for train dataloader')
 parser.add_argument('--eval_workers', type=int, default=0, help='number of workers for test dataloader')
-parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
+parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
 parser.add_argument('--output_dir', type=str, default=None, help='specify an output directory if needed')
 parser.add_argument('--mgpus', action='store_true', default=False, help='whether to use multiple gpu')
 parser.add_argument('--apex', action='store_true', default=False, help='whether to train with mixed precision')

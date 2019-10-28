@@ -44,47 +44,52 @@ def generating_scenes_kitti(train_root_path, test_root_path):
         
     if not os.path.exists(Path(test_root_path) / "ImageSets"):
         os.path.makdir(Path(test_root_path) / "ImageSets")
+        
+    bad_samples = ["c564cfbbc390e37da58c8c28ef91770831270df54e4b38391924e79a2d77793b", \
+        "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538", \
+        "f65f3a13b01af556b436aa6cb046672fa9f7ee020ef7ef056eeecda3d8a8d31f", \
+        "7676a30ae29fff1ce4162a25e9f9d8d6113141d616fa5d4c88a5b7d04e86c92e"]
 
     ############################ save splitting result
     with open(Path(train_root_path) / "ImageSets/train.txt", "w") as f:
         for item in train_scenes:
             item = item.split("/")[-1].split(".")[0]
-            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+            if (item in bad_samples):
                 continue
             f.write("%s\n" % item)
             
     with open(Path(train_root_path) / "ImageSets/train_part_1.txt", "w") as f:
         for item in train_scenes_part_1:
             item = item.split("/")[-1].split(".")[0]
-            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+            if (item in bad_samples:
                 continue
             f.write("%s\n" % item)
             
     with open(Path(train_root_path) / "ImageSets/train_part_2.txt", "w") as f:
         for item in train_scenes_part_2:
             item = item.split("/")[-1].split(".")[0]
-            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+            if (item in bad_samples):
                 continue
             f.write("%s\n" % item)
             
     with open(Path(train_root_path) / "ImageSets/train_part_3.txt", "w") as f:
         for item in train_scenes_part_3:
             item = item.split("/")[-1].split(".")[0]
-            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+            if (item in bad_samples):
                 continue
             f.write("%s\n" % item)
             
     with open(Path(train_root_path) / "ImageSets/train_part_4.txt", "w") as f:
         for item in train_scenes_part_4:
             item = item.split("/")[-1].split(".")[0]
-            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+            if (item in bad_samples):
                 continue
             f.write("%s\n" % item)
             
     with open(Path(train_root_path) / "ImageSets/val.txt", "w") as f:
         for item in val_scenes:
             item = item.split("/")[-1].split(".")[0]
-            if (item == "5f203bffae3daf10e2df13f060d3aa9beb621792d956e1e4c48d665b48c81538"):
+            if (item in bad_samples):
                 continue
             f.write("%s\n" % item)
             

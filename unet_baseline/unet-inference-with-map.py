@@ -1,6 +1,7 @@
 from datetime import datetime
 from functools import partial
 import glob
+import gc
 from multiprocessing import Pool
 
 # Disable multiprocesing for numpy/opencv. We already multiprocess ourselves, this would mean every subprocess produces
@@ -20,6 +21,7 @@ import scipy
 import scipy.ndimage
 import scipy.special
 from scipy.spatial.transform import Rotation as R
+from collections import OrderedDict
 
 import torch
 from torch.utils.data import TensorDataset, DataLoader,Dataset
@@ -57,8 +59,6 @@ from lyft_dataset_sdk.utils.geometry_utils import view_points, transform_matrix
 from lyft_dataset_sdk.utils.map_mask import MapMask
 from pathlib import Path
 from lyft_dataset_sdk.lyftdataset import LyftDataset,LyftDatasetExplorer
-
-
 
 
 ############################################################################## Some hyperparameters we'll need to define for the system
@@ -163,11 +163,9 @@ class LyftTestDataset(LyftDataset):
         if verbose:
             print("Done reverse indexing in {:.1f} seconds.\n======".format(time.time() - start_time))
 
-level5data = LyftTestDataset(data_path='.', json_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_data', verbose=True)
+level5data = LyftTestDataset(data_path='.', json_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/data', verbose=True)
 
 
-
-############################################################################## seed all
 SEED = 42
 def seed_everything(seed=SEED):
     random.seed(seed)
@@ -178,9 +176,6 @@ def seed_everything(seed=SEED):
     torch.backends.cudnn.deterministic = True
 seed_everything(SEED)
 
-
-
-############################################################################## define trainsformation
 SIZE = 336
 
 def transform_train(image, mask):
@@ -246,65 +241,67 @@ def transform_test(image):
 
     return image_simple, image_hard
 
+records = [(level5data.get('sample', record['first_sample_token'])['timestamp'], record) for record in level5data.scene]
 
+entries = []
 
-############################################################################## define bev dataset
+for start_time, record in sorted(records):
+    start_time = level5data.get('sample', record['first_sample_token'])['timestamp'] / 1000000
+
+    token = record['token']
+    name = record['name']
+    date = datetime.utcfromtimestamp(start_time)
+    host = "-".join(record['name'].split("-")[:2])
+    first_sample_token = record["first_sample_token"]
+
+    entries.append((host, name, date, token, first_sample_token))
+            
+df = pd.DataFrame(entries, columns=["host", "scene_name", "date", "scene_token", "first_sample_token"])
+
+# sample_sub = pd.read_csv('../input/3d-object-detection-for-autonomous-vehicles/sample_submission.csv')
+all_sample_tokens,scene_len = [],[]
+for sample_token in tqdm_notebook(df.first_sample_token.values):
+    i = 0
+    while sample_token:
+        all_sample_tokens.append(sample_token)
+        sample = level5data.get("sample", sample_token)
+        sample_token = sample["next"]
+        i += 1
+    scene_len.append(i)
+#     print(len(all_sample_tokens[-1]))
+    
+print('Total number of tokens=',len(all_sample_tokens))
+
 class BEVImageDataset(torch.utils.data.Dataset):
-    def __init__(self, input_filepaths=None, target_filepaths=None, type="train", img_size=336, map_filepaths=None):
-        self.input_filepaths = input_filepaths
-        self.target_filepaths = target_filepaths
+    def __init__(self, sample_token, test_data_folder=None, img_size=336):
+        self.sample_token = sample_token
+        self.test_data_folder = test_data_folder
         self.type = type
-        self.map_filepaths = map_filepaths
         self.img_size = img_size
-        
-        if map_filepaths is not None:
-            assert len(input_filepaths) == len(map_filepaths)
-        
-        if (self.type != "test"):
-            assert len(input_filepaths) == len(target_filepaths)
 
     def __len__(self):
-        return len(self.input_filepaths)
+        return len(self.sample_token)
 
     def __getitem__(self, idx):
-        input_filepath = self.input_filepaths[idx]
         
-        sample_token = input_filepath.split("/")[-1].replace("_input.png","")
+        sample_token = self.sample_token[idx]
+        
+        input_filepath = os.path.join(self.test_data_folder,f"{sample_token}_input.png")
+        map_filepath = os.path.join(self.test_data_folder,f"{sample_token}_map.png")
         
         im = cv2.imread(input_filepath, cv2.IMREAD_UNCHANGED)
+        map_im = cv2.imread(map_filepath, cv2.IMREAD_UNCHANGED)
+ 
+        im = np.concatenate((im, map_im), axis=2)
+
+        im, _ = transform_test(im) # im_simple, im_hard
         
-        if self.map_filepaths:
-            map_filepath = self.map_filepaths[idx]
-            map_im = cv2.imread(map_filepath, cv2.IMREAD_UNCHANGED)
-            im = np.concatenate((im, map_im), axis=2)
-
-        if (self.target_filepaths):
-            target_filepath = self.target_filepaths[idx]
-            target = cv2.imread(target_filepath, cv2.IMREAD_UNCHANGED)
-            target = target.astype(np.int64)
-        else:
-            target = None
-
-        if (self.type == "train"):
-            im, target = transform_train(im, target)
-        elif (self.type == "valid"):
-            im, target = transform_valid(im, target)
-        else:
-            im, _ = transform_test(im) # im_simple, im_hard
-            
         im = im.astype(np.float32)/255
         
         im = torch.from_numpy(im.transpose(2,0,1))
 
-        if (self.type != "test"):
-            target = torch.from_numpy(target)
-            return im, target, sample_token
-        else:
-            return im, sample_token
-
-
-
-############################################################################## add class height, width, len
+        return im, sample_token
+    
 class_height = {'animal':0.51,'bicycle':1.44,'bus':3.44,'car':1.72,'emergency_vehicle':2.39,'motorcycle':1.59,
                 'other_vehicle':3.23,'pedestrian':1.78,'truck':3.44}
 
@@ -316,18 +313,15 @@ class_len = {'animal':0.73,'bicycle':1.76,'bus':12.34,'car':4.76,'emergency_vehi
 
 
 
-test_data_folder = "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/bev_test_data/"
+test_data_folder = "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/bev_data_with_map/"
 
 test_input_filepaths = sorted(glob.glob(os.path.join(test_data_folder, "*_input.png")))
 test_target_filepaths = sorted(glob.glob(os.path.join(test_data_folder, "*_target.png")))
 
-test_dataset = BEVImageDataset(input_filepaths=test_input_filepaths, target_filepaths=test_target_filepaths, type="test", img_size=SIZE, map_filepaths=None)
+test_dataset = BEVImageDataset(sample_token=all_sample_tokens, test_data_folder=test_data_folder, img_size=SIZE)
 
-
-
-############################################################################## define util functions
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
-background_threshold = 100
+background_threshold = 80
 
 def calc_detection_box(prediction_opened,class_probability):
 
@@ -430,16 +424,135 @@ def create_voxel_pointcloud(points, shape, voxel_size=(0.5,0.5,1), z_offset=0):
 def normalize_voxel_intensities(bev, max_intensity=16):
     return (bev/max_intensity).clip(0,1)
 
+# This implementation was copied from https://github.com/jvanvugt/pytorch-unet, it is MIT licensed.
+
+class UNet(nn.Module):
+    def __init__(
+        self,
+        in_channels=1,
+        n_classes=2,
+        depth=5,
+        wf=6,
+        padding=False,
+        batch_norm=False,
+        up_mode='upconv',
+    ):
+        """
+        Implementation of
+        U-Net: Convolutional Networks for Biomedical Image Segmentation
+        (Ronneberger et al., 2015)
+        https://arxiv.org/abs/1505.04597
+        Using the default arguments will yield the exact version used
+        in the original paper
+        Args:
+            in_channels (int): number of input channels
+            n_classes (int): number of output channels
+            depth (int): depth of the network
+            wf (int): number of filters in the first layer is 2**wf
+            padding (bool): if True, apply padding such that the input shape
+                            is the same as the output.
+                            This may introduce artifacts
+            batch_norm (bool): Use BatchNorm after layers with an
+                               activation function
+            up_mode (str): one of 'upconv' or 'upsample'.
+                           'upconv' will use transposed convolutions for
+                           learned upsampling.
+                           'upsample' will use bilinear upsampling.
+        """
+        super(UNet, self).__init__()
+        assert up_mode in ('upconv', 'upsample')
+        self.padding = padding
+        self.depth = depth
+        prev_channels = in_channels
+        self.down_path = nn.ModuleList()
+        for i in range(depth):
+            self.down_path.append(
+                UNetConvBlock(prev_channels, 2 ** (wf + i), padding, batch_norm)
+            )
+            prev_channels = 2 ** (wf + i)
+
+        self.up_path = nn.ModuleList()
+        for i in reversed(range(depth - 1)):
+            self.up_path.append(
+                UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm)
+            )
+            prev_channels = 2 ** (wf + i)
+
+        self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
+
+    def forward(self, x):
+        blocks = []
+        for i, down in enumerate(self.down_path):
+            x = down(x)
+            if i != len(self.down_path) - 1:
+                blocks.append(x)
+                x = F.max_pool2d(x, 2)
+
+        for i, up in enumerate(self.up_path):
+            x = up(x, blocks[-i - 1])
+
+        return self.last(x)
 
 
+class UNetConvBlock(nn.Module):
+    def __init__(self, in_size, out_size, padding, batch_norm):
+        super(UNetConvBlock, self).__init__()
+        block = []
+
+        block.append(nn.Conv2d(in_size, out_size, kernel_size=3, padding=int(padding)))
+        block.append(nn.ReLU())
+        if batch_norm:
+            block.append(nn.BatchNorm2d(out_size))
+
+        block.append(nn.Conv2d(out_size, out_size, kernel_size=3, padding=int(padding)))
+        block.append(nn.ReLU())
+        if batch_norm:
+            block.append(nn.BatchNorm2d(out_size))
+
+        self.block = nn.Sequential(*block)
+
+    def forward(self, x):
+        out = self.block(x)
+        return out
 
 
-############################################################################## define unet model with backbone
+class UNetUpBlock(nn.Module):
+    def __init__(self, in_size, out_size, up_mode, padding, batch_norm):
+        super(UNetUpBlock, self).__init__()
+        if up_mode == 'upconv':
+            self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=2, stride=2)
+        elif up_mode == 'upsample':
+            self.up = nn.Sequential(
+                nn.Upsample(mode='bilinear', scale_factor=2),
+                nn.Conv2d(in_size, out_size, kernel_size=1),
+            )
+
+        self.conv_block = UNetConvBlock(in_size, out_size, padding, batch_norm)
+
+    def center_crop(self, layer, target_size):
+        _, _, layer_height, layer_width = layer.size()
+        diff_y = (layer_height - target_size[0]) // 2
+        diff_x = (layer_width - target_size[1]) // 2
+        return layer[
+            :, :, diff_y : (diff_y + target_size[0]), diff_x : (diff_x + target_size[1])
+        ]
+
+    def forward(self, x, bridge):
+        up = self.up(x)
+        crop1 = self.center_crop(bridge, up.shape[2:])
+        out = torch.cat([up, crop1], 1)
+        out = self.conv_block(out)
+
+        return out
+
+    
+def get_unet_model_reference(in_channels=6, num_output_classes=2):
+    model = UNet(in_channels=in_channels, n_classes=num_output_classes, wf=5, depth=4, padding=True, up_mode='upsample')
+    return model
+
+
 def get_unet_model(model_name="efficient-b3", IN_CHANNEL=3, NUM_CLASSES=2, SIZE=336):
     model = model_iMet(model_name, IN_CHANNEL, NUM_CLASSES, SIZE)
-    
-    # Optional, for multi GPU training and inference
-    # model = nn.DataParallel(model)
     return model
 
 # We weigh the loss for the 0 class lower to account for (some of) the big class imbalance.
@@ -448,27 +561,30 @@ classes = ["car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_
 class_weights = torch.from_numpy(np.array([0.2] + [1.0]*len(classes), dtype=np.float32))
 class_weights = class_weights.to(device)
 
-
-
-############################################################################### training parameters
 test_batch_size = 64
-checkpoint_filename = "unet_checkpoint.pth"
-checkpoint_filepath = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet/", checkpoint_filename)
 
+test_dataloader = torch.utils.data.DataLoader(test_dataset, test_batch_size, shuffle=False, num_workers=4)
 
-############################################################################### model and optimizer
-model = get_unet_model(model_name="efficientnet-b3", IN_CHANNEL=3, NUM_CLASSES=len(classes)+1, SIZE=SIZE)
-model.load_pretrain(checkpoint_filepath)
-model = model.to(device)
+checkpoint_filename_seresnext101 = "unet_with_map_checkpoint_seresnext101/seresnext101_unet_checkpoint.pth"
+checkpoint_filepath_seresnext101 = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet/", checkpoint_filename_seresnext101)
 
+model_seresnext101 = get_unet_model(model_name="seresnext101", IN_CHANNEL=6, NUM_CLASSES=len(classes)+1, SIZE=SIZE)
+model_seresnext101.load_pretrain(checkpoint_filepath_seresnext101)
+model_seresnext101 = model_seresnext101.to(device)
 
+checkpoint_filename_reference = "unet_reference/unet_checkpoint_epoch_10.pth"
+checkpoint_filepath_reference = os.path.join("/media/jionie/my_disk/Kaggle/Lyft/model/unet/", checkpoint_filename_reference)
+state_dict = torch.load(checkpoint_filepath_reference, map_location=lambda storage, loc: storage)
 
-############################################################################### dataloader
-test_dataloader = torch.utils.data.DataLoader(test_dataset, test_batch_size, shuffle=False, num_workers=os.cpu_count()*2)
+new_state_dict = OrderedDict()
+for k, v in state_dict.items():
+    name = k[7:] # remove `module.`
+    new_state_dict[name] = v
 
+model_reference = get_unet_model_reference(in_channels=6, num_output_classes=len(classes)+1)
+model_reference.load_state_dict(new_state_dict)
+model_reference = model_reference.to(device)
 
-
-############################################################################### inference
 sample_tokens = []
 detection_boxes = []
 detection_scores = []
@@ -482,17 +598,23 @@ with torch.no_grad():
 
     for test_batch_i, (X, sample_ids) in enumerate(test_dataloader):
 
-        model.eval()
+        if (test_batch_i % 20 == 0):
+            print("processed : ", test_batch_i, " of ", len(test_dataloader), " batches.")
+        
+        model_seresnext101.eval()
+        model_reference.eval()
 
         sample_tokens.extend(sample_ids)
 
         X = X.to(device).float()  # [N, 3, H, W]
-        prediction, _ = model(X)  # [N, 2, H, W]
-
-        prediction = F.softmax(prediction, dim=1)
+        prediction_seresnext101, _ = model_seresnext101(X)  # [N, 2, H, W]
+        prediction_reference = model_reference(X)
         
-        prediction_cpu = prediction.cpu().numpy()
-        predictions = np.round(prediction_cpu*255).astype(np.uint8)
+        prediction = (prediction_seresnext101 + prediction_reference)/2
+        
+        prediction = F.softmax(prediction, dim=1).cpu().numpy()
+        
+        predictions = np.round(prediction*255).astype(np.uint8)
         
         # Get probabilities for non-background
         predictions_non_class0 = 255 - predictions[:, 0]
@@ -508,10 +630,12 @@ with torch.no_grad():
             detection_boxes.append(np.array(sample_boxes))
             detection_scores.append(sample_detection_scores)
             detection_classes.append(sample_detection_classes)
+            
+del model_reference, model_seresnext101, test_dataloader
+gc.collect()
+            
+print("Total amount of boxes:", np.sum([len(x) for x in detection_boxes]))
 
-                    
-
-############################################################################### get world boxes
 pred_box3ds = []
 
 print("Generating world boxes")
@@ -603,8 +727,6 @@ for (sample_token, sample_boxes, sample_detection_scores, sample_detection_class
         pred_box3ds.append(box3d)
 
 
-
-############################################################################### generate csv
 sub = {}
 
 print("Generating final csv")
@@ -626,9 +748,8 @@ for i in range(len(pred_box3ds)):
     else:
         sub[pred_box3ds[i].sample_token] = pred        
     
-sample_sub = pd.read_csv('/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/sample_submission.csv')
+sample_sub = pd.read_csv('/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/sample_submission.csv')
 for token in set(sample_sub.Id.values).difference(sub.keys()):
-    print(token)
     sub[token] = ''
 
 sub = pd.DataFrame(list(sub.items()))

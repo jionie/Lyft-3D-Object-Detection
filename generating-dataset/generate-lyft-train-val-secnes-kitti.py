@@ -51,6 +51,13 @@ def generating_scenes_kitti(train_root_path, test_root_path):
         "7676a30ae29fff1ce4162a25e9f9d8d6113141d616fa5d4c88a5b7d04e86c92e"]
 
     ############################ save splitting result
+    with open(Path(train_root_path) / "ImageSets/train_val.txt", "w") as f:
+        for item in all_scenes:
+            item = item.split("/")[-1].split(".")[0]
+            if (item in bad_samples):
+                continue
+            f.write("%s\n" % item)
+    
     with open(Path(train_root_path) / "ImageSets/train.txt", "w") as f:
         for item in train_scenes:
             item = item.split("/")[-1].split(".")[0]
@@ -61,7 +68,7 @@ def generating_scenes_kitti(train_root_path, test_root_path):
     with open(Path(train_root_path) / "ImageSets/train_part_1.txt", "w") as f:
         for item in train_scenes_part_1:
             item = item.split("/")[-1].split(".")[0]
-            if (item in bad_samples:
+            if (item in bad_samples):
                 continue
             f.write("%s\n" % item)
             

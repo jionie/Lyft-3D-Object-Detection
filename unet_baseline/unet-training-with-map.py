@@ -192,6 +192,8 @@ class BEVImageDataset(torch.utils.data.Dataset):
             im, target = transform_valid(im, target)
         else:
             im, _ = transform_test(im) # im_simple, im_hard
+            
+        im = im.astype(np.float32)/255
         
         im = torch.from_numpy(im.transpose(2,0,1))
 

@@ -7,6 +7,7 @@ import torch
 
 import lib.utils.roipool3d.roipool3d_utils as roipool3d_utils
 from lib.datasets.kitti_dataset import KittiDataset
+import lib.utils.kitti_utils as kitti_utils
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -23,15 +24,22 @@ class GTDatabaseGenerator(KittiDataset):
         self.gt_database = None 
         if classes == 'Car':
             self.classes = ('Background', 'Car')
+            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
         elif classes == 'People':
             self.classes = ('Background', 'Pedestrian', 'Cyclist')
+            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
         elif classes == 'Pedestrian':
             self.classes = ('Background', 'Pedestrian')
+            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_ped')
         elif classes == 'Cyclist':
             self.classes = ('Background', 'Cyclist')
+            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
         elif classes == 'Lyft':
             self.self_define_dataset = True
-            self.classes = ["Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle"]
+            self.classes = ("Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle")
+            self.type_to_id = {"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
         else:
             assert False, "Invalid classes: %s" % classes
 
@@ -53,6 +61,15 @@ class GTDatabaseGenerator(KittiDataset):
             valid_obj_list.append(obj)
 
         return valid_obj_list
+    
+    def get_label(self, idx, aug = False):
+        if self.split == 'train_aug':
+            label_file = os.path.join(self.aug_label_dir, '%s.txt' % idx)
+        else:
+            label_file = os.path.join(self.label_dir, '%s.txt' % idx)
+
+        assert os.path.exists(label_file)
+        return kitti_utils.get_objects_from_label(label_file, self.type_to_id)
 
     def generate_gt_database(self):
         gt_database = []

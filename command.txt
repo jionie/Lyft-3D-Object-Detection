@@ -2,4 +2,8 @@ python3 train_rcnn.py --cfg_file cfgs/default.yaml --train_mode rpn --data_root 
 
 python3 train_rcnn.py --cfg_file cfgs/default.yaml --train_mode rcnn --data_root "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --gt_database "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/gt_database/train_gt_database_3level_emergency_vehicle.pkl" --output "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output" --pretrain_model "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_pretrain.pth" --rcnn_ckpt "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_pretrain.pth" --epochs 30 --sub_epochs 5 --start_epoch 0 --start_round 0 --start_part 0 --workers 4 --batch_size 4 --valid_batch_size 1 --train_with_eval
 
+python3 eval_rcnn.py --cfg_file cfgs/default.yaml
+
 python3 generate_gt_database.py --root_dir "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --save_dir "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/gt_database" --class_name Lyft --split train_part_1
+
+python3 train.py train --config_path="/media/jionie/my_disk/Kaggle/Lyft/codes/second/second/configs/lyft/all.fhd.config" --model_dir= "/media/jionie/my_disk/Kaggle/Lyft/model/second/PointPillars"

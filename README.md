@@ -35,6 +35,10 @@ python3 generate_gt_database.py --root_dir "*/train_root" --save_dir "*/train_ro
 
 ```
 ```bash
+python3 generate_gt_database.py --root_dir "*/train_root" --save_dir "*/train_root/KITTI/gt_database" --class_name Lyft --split train_val
+
+```
+```bash
 python3 generate_gt_database.py --root_dir "*/train_root" --save_dir "*/train_root/KITTI/gt_database" --class_name Lyft --split val
 
 ```
@@ -48,3 +52,8 @@ python3 train_rcnn.py --cfg_file cfgs/default.yaml --batch_size 16 --valid_batch
 
 ```
 We modified codes to iteratively training from 4 parts, you can change codes for your own parts, sub_epochs means each parts trains sub_epochs epochs then change to next part; one round means trained 4 parts. 
+
+Failed with PointRCNN, we decide to move to second with PointPillars, first we used same KITTI format data, then we cd "second" folder run:
+```bash
+python3 train.py train --config_path="*/second/second/configs/lyft/all.fhd.config" --model_dir= "*/model/second/PointPillars"
+```

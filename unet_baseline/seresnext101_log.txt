@@ -139,3 +139,16 @@ Epoch 1
 Train Loss: 2.1992376 Valid Loss: 1.1041576 Valid CE Loss: 0.06257546
 Validation metric improved (inf --> 1.104158).  Saving model ...
 Epoch 2
+Epoch 1
+Epoch 1
+Train Loss: 2.2989202 Valid Loss: 1.0648237 Valid CE Loss: 0.0610773
+Validation metric improved (inf --> 1.064824).  Saving model ...
+Epoch 2
+Train Loss: 2.293536 Valid Loss: 1.0817728 Valid CE Loss: 0.060807437
+Epoch 3
+Train Loss: 2.269602 Valid Loss: 1.0821832 Valid CE Loss: 0.06138584
+Epoch 4
+Train Loss: 2.2621493 Valid Loss: 1.0858148 Valid CE Loss: 0.06200722
+Epoch 5
+Epoch 1
+Epoch 1

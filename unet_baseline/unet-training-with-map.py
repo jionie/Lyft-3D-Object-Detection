@@ -85,17 +85,17 @@ SIZE = 336
 
 
 def transform_train(image, mask):
-    if random.random() < 0.5:
-        image = albumentations.RandomRotate90(p=1)(image=image)['image']
-        mask = albumentations.RandomRotate90(p=1)(image=mask)['image']
+    # if random.random() < 0.5:
+    #     image = albumentations.RandomRotate90(p=1)(image=image)['image']
+    #     mask = albumentations.RandomRotate90(p=1)(image=mask)['image']
 
-    if random.random() < 0.5:
-        image = albumentations.Transpose(p=1)(image=image)['image']
-        mask = albumentations.Transpose(p=1)(image=mask)['image']
+    # if random.random() < 0.5:
+    #     image = albumentations.Transpose(p=1)(image=image)['image']
+    #     mask = albumentations.Transpose(p=1)(image=mask)['image']
 
-    if random.random() < 0.5:
-        image = albumentations.VerticalFlip(p=1)(image=image)['image']
-        mask = albumentations.VerticalFlip(p=1)(image=mask)['image']
+    # if random.random() < 0.5:
+    #     image = albumentations.VerticalFlip(p=1)(image=image)['image']
+    #     mask = albumentations.VerticalFlip(p=1)(image=mask)['image']
 
     if random.random() < 0.5:
         image = albumentations.HorizontalFlip(p=1)(image=image)['image']
@@ -110,9 +110,9 @@ def transform_train(image, mask):
     #     image = albumentations.RandomContrast(0.1)(image=image)['image']
     #     image = albumentations.Blur(blur_limit=3)(image=image)['image']
 
-    # if random.random() < 0.5:
-    #     image = albumentations.Cutout(num_holes=1, max_h_size=32, max_w_size=32, p=1)(image)
-    #     mask = albumentations.Cutout(num_holes=1, max_h_size=32, max_w_size=32, p=1)(mask)
+    if random.random() < 0.5:
+        image = albumentations.Cutout(num_holes=1, max_h_size=32, max_w_size=32, p=1)(image=image)['image']
+        mask = albumentations.Cutout(num_holes=1, max_h_size=32, max_w_size=32, p=1)(image=mask)['image']
 
     return image, mask
 
@@ -270,7 +270,7 @@ def unet_training(model_name,
     model = model.to(device)
 
     # optim = torch.optim.Adam(model.parameters(), lr=1e-3)
-    lr = 1e-3
+    lr = 1e-5
     
     if optimizer_name == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

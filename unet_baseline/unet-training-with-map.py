@@ -53,10 +53,10 @@ import albumentations
 from albumentations import torch as AT
 
 parser = argparse.ArgumentParser(description="arg parser")
-parser.add_argument('--model', type=str, default='seresnext101', required=False, help='specify the backbone model')
+parser.add_argument('--model', type=str, default='dpn68', required=False, help='specify the backbone model')
 parser.add_argument('--optimizer', type=str, default='Ranger', required=False, help='specify the optimizer')
 parser.add_argument("--lr_scheduler", type=str, default='adamonecycle', required=False, help="specify the lr scheduler")
-parser.add_argument("--batch_size", type=int, default=16, required=False, help="specify the batch size for training")
+parser.add_argument("--batch_size", type=int, default=32, required=False, help="specify the batch size for training")
 parser.add_argument("--valid_batch_size", type=int, default=64, required=False, help="specify the batch size for validating")
 parser.add_argument("--num_epoch", type=int, default=50, required=False, help="specify the total epoch")
 parser.add_argument("--accumulation_steps", type=int, default=4, required=False, help="specify the accumulation steps")
@@ -270,7 +270,7 @@ def unet_training(model_name,
     model = model.to(device)
 
     # optim = torch.optim.Adam(model.parameters(), lr=1e-3)
-    lr = 1e-5
+    lr = 1e-4
     
     if optimizer_name == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

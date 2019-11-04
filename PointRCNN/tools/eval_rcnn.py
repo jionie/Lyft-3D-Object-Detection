@@ -35,14 +35,14 @@ parser.add_argument("--ckpt", type=str, default=None, help="specify a checkpoint
 parser.add_argument("--rpn_ckpt", type=str, default=None, help="specify the checkpoint of rpn if trained separated")
 parser.add_argument("--rcnn_ckpt", type=str, default=None, help="specify the checkpoint of rcnn if trained separated")
 
-parser.add_argument('--batch_size', type=int, default=1, help='batch size for evaluation')
+parser.add_argument('--batch_size', type=int, default=4, help='batch size for evaluation')
 parser.add_argument('--workers', type=int, default=0, help='number of workers for dataloader')
 parser.add_argument("--extra_tag", type=str, default='default', help="extra tag for multiple evaluation")
 parser.add_argument('--output_dir', type=str, \
     default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/KITTI/output", \
         help='specify an output directory if needed')
 parser.add_argument("--ckpt_dir", type=str, \
-    default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rcnn/default/ckpt/checkpoint_round_1_part_1_epoch_1.pth", \
+    default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/PointRCNN.pth", \
         help="specify a ckpt directory to be evaluated if needed")
 
 parser.add_argument('--save_result', action='store_true', default=False, help='save evaluation results to files')
@@ -58,7 +58,6 @@ parser.add_argument("--rcnn_eval_feature_dir", type=str, default=None,
 parser.add_argument('--set', dest='set_cfgs', default=None, nargs=argparse.REMAINDER,
                     help='set extra config keys if needed')
 args = parser.parse_args()
-
 
 def create_logger(log_file):
     log_format = '%(asctime)s  %(levelname)5s  %(message)s'
@@ -88,10 +87,11 @@ def save_kitti_format(sample_id, calib, bbox3d, kitti_output_dir, scores, img_sh
         for k in range(bbox3d.shape[0]):
             if box_valid_mask[k] == 0:
                 continue
+                
             x, z, ry = bbox3d[k, 0], bbox3d[k, 2], bbox3d[k, 6]
             beta = np.arctan2(z, x)
             alpha = -np.sign(beta) * np.pi / 2 + beta + ry
-
+            
             print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f' %
                   (cfg.CLASSES, alpha, img_boxes[k, 0], img_boxes[k, 1], img_boxes[k, 2], img_boxes[k, 3],
                    bbox3d[k, 3], bbox3d[k, 4], bbox3d[k, 5], bbox3d[k, 0], bbox3d[k, 1], bbox3d[k, 2],
@@ -452,7 +452,7 @@ def eval_one_epoch_rcnn(model, dataloader, epoch_id, result_dir, logger):
     if cfg.TEST.SPLIT != 'test':
         logger.info('Averate Precision:')
         name_to_class = {"car": 0, "motorcycle": 1, "bus": 2, "bicycle": 3, \
-        "truck": 4, "pedestrian": 5, "other_vehicle": 6, "animal": 7, "emergency_vehicle": 8}
+        "truck": 4, "pedestrian": 5, "other_vehicle": 6, "animal": 7, "emergency_vehicle": 8, 'Car': 0, 'Pedestrian': 1, 'Cyclist': 2, 'Lyft': 0}
         ap_result_str, ap_dict = kitti_evaluate(dataset.label_dir, final_output_dir, label_split_file=split_file,
                                                 current_class=name_to_class[cfg.CLASSES])
         logger.info(ap_result_str)
@@ -464,6 +464,7 @@ def eval_one_epoch_rcnn(model, dataloader, epoch_id, result_dir, logger):
 
 
 def eval_one_epoch_joint(model, dataloader, epoch_id, result_dir, logger):
+    # [x, y, z, h, w, l, ry, cls]
     np.random.seed(666)
     MEAN_SIZE = torch.from_numpy(cfg.CLS_MEAN_SIZE[0]).cuda()
     mode = 'TEST' if args.test else 'EVAL'
@@ -521,7 +522,7 @@ def eval_one_epoch_joint(model, dataloader, epoch_id, result_dir, logger):
                                           get_xz_fine=True, get_y_by_bin=cfg.RCNN.LOC_Y_BY_BIN,
                                           loc_y_scope=cfg.RCNN.LOC_Y_SCOPE, loc_y_bin_size=cfg.RCNN.LOC_Y_BIN_SIZE,
                                           get_ry_fine=True).view(batch_size, -1, 7)
-
+        
         # scoring
         if rcnn_cls.shape[2] == 1:
             raw_scores = rcnn_cls  # (B, M, 1)
@@ -602,6 +603,7 @@ def eval_one_epoch_joint(model, dataloader, epoch_id, result_dir, logger):
                 image_shape = dataset.get_image_shape(cur_sample_id)
                 save_kitti_format(cur_sample_id, calib, roi_boxes3d_np[k], roi_output_dir,
                                   roi_scores_raw_np[k], image_shape)
+                
                 save_kitti_format(cur_sample_id, calib, pred_boxes3d_np[k], refine_output_dir,
                                   raw_scores_np[k], image_shape)
 
@@ -877,6 +879,13 @@ if __name__ == "__main__":
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs)
     cfg.TAG = os.path.splitext(os.path.basename(args.cfg_file))[0]
+    
+    type_to_id = {"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+    CLASS_MEAN = [[1.93, 1.72, 4.76], [0.96, 1.59, 2.35], [2.96, 3.44, 12.34], [0.63, 1.44, 1.76], \
+    [2.84, 3.44, 10.24], [0.77, 1.78, 0.81], [2.79, 3.23, 8.20], [0.36, 0.51, 0.73],[2.45, 2.39, 6.52]]
+    
+    cfg.CLS_MEAN_SIZE = [np.array(CLASS_MEAN[type_to_id[cfg.CLASSES] - 1]).astype(np.float32)]
 
     if args.eval_mode == 'rpn':
         cfg.RPN.ENABLED = True

@@ -46,7 +46,7 @@ def generating_scenes(train_root_path, test_root_path):
         for item in val_scenes:
             f.write("%s\n" % item)
             
-    with open(Path(train_root_path) / "test_scenes.txt", "w") as f:
+    with open(Path(test_root_path) / "test_scenes.txt", "w") as f:
         for item in test_scenes:
             f.write("%s\n" % item)
             

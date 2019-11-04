@@ -11,31 +11,55 @@ from sklearn.externals import joblib
 
 
 class KittiRCNNDataset(KittiDataset):
-    def __init__(self, root_dir, npoints=16384, split='train', classes='Car', mode='TRAIN', random_select=True,
+    def __init__(self, root_dir, npoints=16384, split='train', classes='car', mode='TRAIN', random_select=True,
                  logger=None, rcnn_training_roi_dir=None, rcnn_training_feature_dir=None, rcnn_eval_roi_dir=None,
                  rcnn_eval_feature_dir=None, gt_database_dir=None):
         super().__init__(root_dir=root_dir, split=split)
-        if classes == 'Car':
-            self.classes = ('Background', 'Car')
-            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
-        elif classes == 'People':
-            self.classes = ('Background', 'Pedestrian', 'Cyclist')
-            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
-        elif classes == 'Pedestrian':
-            self.classes = ('Background', 'Pedestrian')
-            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_ped')
-        elif classes == 'Cyclist':
-            self.classes = ('Background', 'Cyclist')
-            self.type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_cyclist')
-        elif classes == 'Lyft':
-            self.self_define_dataset = True
-            self.classes = ("Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle")
+        if classes == 'car':
+            self.classes = ("Background", "car")
             self.type_to_id = {"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
         "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_lyft')
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'motorcycle':
+            self.classes = ('Background', 'motorcycle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'bus':
+            self.classes = ('Background', 'bus')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'bicycle':
+            self.classes = ('Background', 'bicycle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'truck':
+            self.classes = ('Background', 'truck')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'pedestrian':
+            self.classes = ('Background', 'pedestrian')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'other_vehicle':
+            self.classes = ('Background', 'other_vehicle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'animal':
+            self.classes = ('Background', 'animal')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'emergency_vehicle':
+            self.classes = ('Background', 'emergency_vehicle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
         else:
             assert False, "Invalid classes: %s" % classes
 

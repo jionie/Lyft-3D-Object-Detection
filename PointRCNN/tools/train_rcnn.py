@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 import os
+import numpy as np
 import argparse
 import logging
 from functools import partial
@@ -213,18 +214,32 @@ if __name__ == "__main__":
     # tensorboard log
     tb_log = SummaryWriter(log_dir=os.path.join(root_result_dir, 'tensorboard'))
 
+    type_to_id = {"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+    CLASS_MEAN = [[1.93, 1.72, 4.76], [0.96, 1.59, 2.35], [2.96, 3.44, 12.34], [0.63, 1.44, 1.76], \
+    [2.84, 3.44, 10.24], [0.77, 1.78, 0.81], [2.79, 3.23, 8.20], [0.36, 0.51, 0.73],[2.45, 2.39, 6.52]]
+    
+    cfg.CLS_MEAN_SIZE = [np.array(CLASS_MEAN[type_to_id[cfg.CLASSES] - 1]).astype(np.float32)]
     
     # create dataloader & network & optimizer
-    if cfg.CLASSES == "Lyft":
-        classes = ("Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle")
-    elif cfg.CLASSES == "Car":
-        classes = ('Background', 'Car')
-    elif cfg.CLASSES == 'People':
-        classes = ('Background', 'Pedestrian', 'Cyclist')
-    elif cfg.CLASSES == 'Pedestrian':
-        classes = ('Background', 'Pedestrian')
-    elif cfg.CLASSES == 'Cyclist':
-        classes = ('Background', 'Cyclist')
+    if cfg.CLASSES == 'car':
+        classes = ("Background", "car")
+    elif cfg.CLASSES == 'motorcycle':
+        classes = ('Background', 'motorcycle')
+    elif cfg.CLASSES == 'bus':
+        classes = ('Background', 'bus')
+    elif cfg.CLASSES == 'bicycle':
+        classes = ('Background', 'bicycle')
+    elif cfg.CLASSES == 'truck':
+        classes = ('Background', 'truck')
+    elif cfg.CLASSES == 'pedestrian':
+        classes = ('Background', 'pedestrian')
+    elif cfg.CLASSES == 'other_vehicle':
+        classes = ('Background', 'other_vehicle')
+    elif cfg.CLASSES == 'animal':
+        classes = ('Background', 'animal')
+    elif cfg.CLASSES == 'emergency_vehicle':
+        classes = ('Background', 'emergency_vehicle')
     else:
         assert False, "Invalid classes: %s" % cfg.CLASSES
         

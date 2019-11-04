@@ -26,34 +26,6 @@ from lyft_dataset_sdk.lyftdataset import LyftDataset
 @register_dataset
 class MyLyftDataset(Dataset):
     NumPointFeatures = 4  # xyz, timestamp. set 4 to use kitti pretrain
-    NameMapping = {
-        'movable_object.barrier': 'barrier',
-        'vehicle.bicycle': 'bicycle',
-        'vehicle.bus.bendy': 'bus',
-        'vehicle.bus.rigid': 'bus',
-        'vehicle.car': 'car',
-        'vehicle.construction': 'construction_vehicle',
-        'vehicle.motorcycle': 'motorcycle',
-        'human.pedestrian.adult': 'pedestrian',
-        'human.pedestrian.child': 'pedestrian',
-        'human.pedestrian.construction_worker': 'pedestrian',
-        'human.pedestrian.police_officer': 'pedestrian',
-        'movable_object.trafficcone': 'traffic_cone',
-        'vehicle.trailer': 'trailer',
-        'vehicle.truck': 'truck'
-    }
-    DefaultAttribute = {
-        "car": "vehicle.parked",
-        "pedestrian": "pedestrian.moving",
-        "trailer": "vehicle.parked",
-        "truck": "vehicle.parked",
-        "bus": "vehicle.parked",
-        "motorcycle": "cycle.without_rider",
-        "construction_vehicle": "vehicle.parked",
-        "bicycle": "cycle.without_rider",
-        "barrier": "",
-        "traffic_cone": "",
-    }
 
     def __init__(self,
                  root_path,

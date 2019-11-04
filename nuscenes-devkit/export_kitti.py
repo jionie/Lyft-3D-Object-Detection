@@ -4,18 +4,14 @@
 
 """
 https://www.kaggle.com/c/3d-object-detection-for-autonomous-vehicles/discussion/112409649874
-
-
 This script converts nuScenes data to KITTI format and KITTI results to nuScenes.
 It is used for compatibility with software that uses KITTI-style annotations.
-
 The difference beteeen formats:
     KITTI has only front-facing cameras, whereas nuScenes has a 360 degree horizontal fov.
     KITTI has no radar data.
     The nuScenes database format is more modular.
     KITTI fields like occluded and truncated cannot be exactly reproduced from nuScenes data.
     KITTI has different categories.
-
 Current limitations of the script.:
     We don't specify the KITTI imu_to_velo_kitti projection in this code base.
     We map nuScenes categories to nuScenes detection categories, rather than KITTI categories.
@@ -43,7 +39,6 @@ from tqdm import tqdm
 class KittiConverter:
     def __init__(self, store_dir: str = "~/lyft_kitti/train/"):
         """
-
         Args:
             store_dir: Where to write the KITTI-style annotations.
         """
@@ -64,7 +59,6 @@ class KittiConverter:
         samples_count: Optional[int] = None,
     ) -> None:
         """Converts nuScenes GT formatted annotations to KITTI format.
-
         Args:
             lyft_dataroot: folder with tables (json files).
             table_folder: folder with tables (json files).
@@ -74,7 +68,6 @@ class KittiConverter:
                 bboxes in PointCloud and use only FrontCamera.
             parallel_n_jobs: Number of threads to parralel processing.
             samples_count: Number of samples to convert.
-
         """
         self.lyft_dataroot = lyft_dataroot
         self.table_folder = table_folder
@@ -86,11 +79,11 @@ class KittiConverter:
         
         if not self.store_dir.is_dir():
             self.store_dir.mkdir(parents=True)
-        
+
         # Select subset of the data to look at.
         self.lyft_ds = LyftDataset(self.lyft_dataroot, self.table_folder)
 
-        self.kitti_to_nu_lidar = Quaternion(axis=(0, 0, 1), angle=np.pi / 2)
+        self.kitti_to_nu_lidar = Quaternion(axis=(0, 0, 1), angle=np.pi)
         self.kitti_to_nu_lidar_inv = self.kitti_to_nu_lidar.inverse
 
         # Get assignment of scenes to splits.
@@ -173,6 +166,9 @@ class KittiConverter:
             velo_to_cam_trans = velo_to_cam_kitti[:3, 3]
 
             # Check that the rotation has the same format as in KITTI.
+            if self.lyft_ds.get("sensor", cs_record_cam["sensor_token"])["channel"] == "CAM_FRONT":
+                expected_kitti_velo_to_cam_rot = np.array([[0, -1, 0], [0, 0, -1], [1, 0, 0]])
+                assert (velo_to_cam_rot.round(0) == expected_kitti_velo_to_cam_rot).all(), velo_to_cam_rot.round(0)
             assert (velo_to_cam_trans[1:3] < 0).all()
 
             # Retrieve the token from the lidar.
@@ -181,15 +177,9 @@ class KittiConverter:
             # not the camera.
             filename_cam_full = sd_record_cam["filename"]
             filename_lid_full = sd_record_lid["filename"]
-            
-            if (filename_lid_full != "lidar/host-a011_lidar1_1232732469202015806.bin"):
-                return
-            else :
-                print("Processing repaired data.")
 
             # Convert image (jpg to png).
             src_im_path = self.lyft_ds.data_path.joinpath(filename_cam_full)
-            
             dst_im_path = self.image_folder.joinpath(f"{token_to_write}.png")
             if not dst_im_path.exists():
                 im = Image.open(src_im_path)
@@ -197,15 +187,10 @@ class KittiConverter:
 
             # Convert lidar.
             # Note that we are only using a single sweep, instead of the commonly used n sweeps.
-            
             src_lid_path = self.lyft_ds.data_path.joinpath(filename_lid_full)
             dst_lid_path = self.lidar_folder.joinpath(f"{token_to_write}.bin")
 
-            try:
-                pcl = LidarPointCloud.from_file(Path(src_lid_path))
-            except Exception as e:
-                print ("Failed to transfer Lidar Pointcloud for {}: {}:".format(sample_token, e))
-                return
+            pcl = LidarPointCloud.from_file(Path(src_lid_path))
             # In KITTI lidar frame.
             pcl.rotate(self.kitti_to_nu_lidar_inv.rotation_matrix)
             with open(dst_lid_path, "w") as lid_file:
@@ -288,12 +273,9 @@ class KittiConverter:
 
     def render_kitti(self, render_2d: bool = False) -> None:
         """Renders the annotations in the KITTI dataset from a lidar and a camera view.
-
         Args:
             render_2d: Whether to render 2d boxes (only works for camera data).
-
         Returns:
-
         """
         if render_2d:
             print("Rendering 2d boxes from KITTI format")
@@ -322,12 +304,9 @@ class KittiConverter:
 
     def _split_to_samples(self, split_logs: List[str]) -> List[str]:
         """Convenience function to get the samples in a particular split.
-
         Args:
             split_logs: A list of the log names in this split.
-
         Returns: The list of samples.
-
         """
         samples = []
         for sample in self.lyft_ds.sample:

@@ -22,12 +22,12 @@ def nuscenes_data_prep(root_path, version, dataset_name, max_sweeps=10):
     create_groundtruth_database(dataset_name, root_path, Path(root_path) / name)
     
 def lyft_data_prep(root_path, version, dataset_name, max_sweeps=10):
-    lf_ds.create_lyft_infos(root_path, version=version, max_sweeps=max_sweeps)
+    # lf_ds.create_lyft_infos(root_path, version=version, max_sweeps=max_sweeps)
     name = "infos_train.pkl"
     if version == "lyft-test":
         name = "infos_test.pkl"
     create_groundtruth_database(dataset_class_name=dataset_name, data_path=root_path, info_path=Path(root_path) / name, \
-        database_save_path = Path(root_path) / 'gt_database', db_info_save_path=Path(root_path) / 'lyft_db_infos.pkl')
+        database_save_path = Path(root_path) / 'gt_database', db_info_save_path=Path(root_path) / 'gt_database/lyft_db_infos.pkl')
 
 if __name__ == '__main__':
     fire.Fire()

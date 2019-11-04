@@ -46,23 +46,6 @@ def _fill_trainval_infos(nusc,
                          test=False,
                          max_sweeps=10):
     
-    NameMapping = {
-        'movable_object.barrier': 'barrier',
-        'vehicle.bicycle': 'bicycle',
-        'vehicle.bus.bendy': 'bus',
-        'vehicle.bus.rigid': 'bus',
-        'vehicle.car': 'car',
-        'vehicle.construction': 'construction_vehicle',
-        'vehicle.motorcycle': 'motorcycle',
-        'human.pedestrian.adult': 'pedestrian',
-        'human.pedestrian.child': 'pedestrian',
-        'human.pedestrian.construction_worker': 'pedestrian',
-        'human.pedestrian.police_officer': 'pedestrian',
-        'movable_object.trafficcone': 'traffic_cone',
-        'vehicle.trailer': 'trailer',
-        'vehicle.truck': 'truck'
-    }
-    
     train_nusc_infos = []
     val_nusc_infos = []
     
@@ -155,9 +138,6 @@ def _fill_trainval_infos(nusc,
                 velocity[i] = velo[:2]
 
             names = [b.name for b in boxes]
-            for i in range(len(names)):
-                if names[i] in NameMapping:
-                    names[i] = NameMapping[names[i]]
             names = np.array(names)
             # we need to convert rot to SECOND format.
             # change the rot format will break all checkpoint, so...

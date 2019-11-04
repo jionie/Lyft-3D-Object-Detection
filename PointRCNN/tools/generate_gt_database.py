@@ -114,7 +114,7 @@ class GTDatabaseGenerator(KittiDataset):
                                'obj': obj_list[k]}
                 gt_database.append(sample_dict)
 
-        save_file_name = os.path.join(args.save_dir, '%s_gt_database_3level_%s.pkl' % (args.split, self.classes[-1]))
+        save_file_name = os.path.join(args.save_dir, '%s_gt_database_3level_%s.joblib' % (args.split, self.classes[-1]))
         with open(save_file_name, 'wb') as f:
             joblib.dump(gt_database, f)  
             # loaded_model = joblib.load(filename)

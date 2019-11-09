@@ -4,14 +4,18 @@
 
 """
 https://www.kaggle.com/c/3d-object-detection-for-autonomous-vehicles/discussion/112409649874
+
+
 This script converts nuScenes data to KITTI format and KITTI results to nuScenes.
 It is used for compatibility with software that uses KITTI-style annotations.
+
 The difference beteeen formats:
     KITTI has only front-facing cameras, whereas nuScenes has a 360 degree horizontal fov.
     KITTI has no radar data.
     The nuScenes database format is more modular.
     KITTI fields like occluded and truncated cannot be exactly reproduced from nuScenes data.
     KITTI has different categories.
+
 Current limitations of the script.:
     We don't specify the KITTI imu_to_velo_kitti projection in this code base.
     We map nuScenes categories to nuScenes detection categories, rather than KITTI categories.
@@ -39,14 +43,15 @@ from tqdm import tqdm
 class KittiConverter:
     def __init__(self, store_dir: str = "~/lyft_kitti/train/"):
         """
+
         Args:
             store_dir: Where to write the KITTI-style annotations.
         """
-        self.store_dir = Path(store_dir)
+        self.store_dir = Path(store_dir).expanduser()
 
         # Create store_dir.
-        # if not self.store_dir.is_dir():
-        #     self.store_dir.mkdir(parents=True)
+        if not self.store_dir.is_dir():
+            self.store_dir.mkdir(parents=True)
 
     def nuscenes_gt_to_kitti(
         self,
@@ -79,7 +84,8 @@ class KittiConverter:
         
         if not self.store_dir.is_dir():
             self.store_dir.mkdir(parents=True)
-
+            
+            
         # Select subset of the data to look at.
         self.lyft_ds = LyftDataset(self.lyft_dataroot, self.table_folder)
 
@@ -271,7 +277,7 @@ class KittiConverter:
                     # Write to disk.
                     label_file.write(output + "\n")
 
-    def render_kitti(self, render_2d: bool = False) -> None:
+    def render_kitti(self, render_2d: bool = False, store_dataroot: str = "~/lyft_kitti/train/"):
         """Renders the annotations in the KITTI dataset from a lidar and a camera view.
         Args:
             render_2d: Whether to render 2d boxes (only works for camera data).
@@ -282,6 +288,8 @@ class KittiConverter:
         else:
             print("Rendering 3d boxes projected from 3d KITTI format")
 
+        self.store_dir = Path(store_dataroot)
+        
         # Load the KITTI dataset.
         kitti = KittiDB(root=self.store_dir)
 
@@ -292,6 +300,7 @@ class KittiConverter:
 
         # Render each image.
         tokens = kitti.tokens
+        i = 0
 
         # currently supports only single thread processing
         for token in tqdm(tokens):
@@ -301,12 +310,19 @@ class KittiConverter:
                 kitti.render_sample_data(token, sensor_modality=sensor, out_path=out_path, render_2d=render_2d)
                 # Close the windows to avoid a warning of too many open windows.
                 plt.close()
+                
+            if (i > 10):
+                break
+            i += 1
 
     def _split_to_samples(self, split_logs: List[str]) -> List[str]:
         """Convenience function to get the samples in a particular split.
+
         Args:
             split_logs: A list of the log names in this split.
+
         Returns: The list of samples.
+
         """
         samples = []
         for sample in self.lyft_ds.sample:

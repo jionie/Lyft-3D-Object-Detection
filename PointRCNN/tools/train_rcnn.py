@@ -242,7 +242,7 @@ if __name__ == "__main__":
         classes = ('Background', 'emergency_vehicle')
     else:
         assert False, "Invalid classes: %s" % cfg.CLASSES
-        
+    
     model = PointRCNN(num_classes=classes.__len__(), use_xyz=True, mode='TRAIN')
     
     model.cuda()
@@ -282,7 +282,7 @@ if __name__ == "__main__":
         train_utils.load_part_ckpt(pure_model, filename=args.rpn_ckpt, logger=logger, total_keys=total_keys)
     
     # training part    
-    trainin_part = ['train_part_3', 'train_part_4', 'train_part_1', 'train_part_2'] 
+    trainin_part = ['train_part_1', 'train_part_2', 'train_part_3', 'train_part_4'] 
     gt_database_folder = os.path.split(args.gt_database)[:-1][0]
      
     for i in range(args.epochs // args.sub_epochs * len(trainin_part)):
@@ -296,7 +296,8 @@ if __name__ == "__main__":
             eval_frequency = args.sub_epochs + 1 # no eval
         
         cfg.TRAIN.SPLIT = trainin_part[i % len(trainin_part)]
-        args.gt_database = gt_database_folder + '/' + trainin_part[i % len(trainin_part)] + '_gt_database_3level_emergency_vehicle.pkl'
+        if args.gt_database is not None:
+            args.gt_database = gt_database_folder + '/' + trainin_part[i % len(trainin_part)] + '_gt_database_3level_emergency_vehicle.pkl'
         train_loader, test_loader = create_dataloader(logger, args.gt_database)
 
         lr_scheduler, bnm_scheduler = create_scheduler(optimizer, total_steps=len(train_loader) * args.sub_epochs,
@@ -322,7 +323,7 @@ if __name__ == "__main__":
             bnm_scheduler=bnm_scheduler,
             model_fn_eval=train_functions.model_joint_fn_decorator(),
             tb_log=tb_log,
-            eval_frequency=args.sub_epochs,
+            eval_frequency=args.sub_epochs + 1,
             lr_warmup_scheduler=lr_warmup_scheduler,
             warmup_epoch=cfg.TRAIN.WARMUP_EPOCH,
             grad_norm_clip=cfg.TRAIN.GRAD_NORM_CLIP

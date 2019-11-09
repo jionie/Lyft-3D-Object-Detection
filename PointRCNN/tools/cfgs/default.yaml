@@ -2,8 +2,8 @@ CLASSES: car
 
 INCLUDE_SIMILAR_TYPE: True
 
-# config of augmentation
-AUG_DATA: True
+# config of augmentation, close AUG
+AUG_DATA: False
 AUG_METHOD_LIST: ['rotation', 'scaling', 'flip']
 AUG_METHOD_PROB: [1.0, 1.0, 0.5]
 AUG_ROT_RANGE: 18
@@ -109,7 +109,7 @@ RCNN:
     REG_FC: [256, 256]
 
     # config of training
-    LOSS_CLS: SigmoidFocalLoss
+    LOSS_CLS: BinaryCrossEntropy
     FOCAL_ALPHA: [0.25, 0.75]
     FOCAL_GAMMA: 2.0
     CLS_WEIGHT: [1.0, 1.0, 1.0]
@@ -134,7 +134,7 @@ TRAIN:
     LR_CLIP: 0.00001
     LR_DECAY: 0.5
     DECAY_STEP_LIST: [100, 150, 180, 200]
-    LR_WARMUP: False
+    LR_WARMUP: True
     WARMUP_MIN: 0.0002
     WARMUP_EPOCH: 1
 

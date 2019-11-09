@@ -187,7 +187,7 @@ class Trainer(object):
             for epoch in tbar:
                 
                 # eval one epoch
-                if (epoch != 0) and (epoch % eval_frequency) == 0:
+                if (epoch == (eval_frequency - 1)):
                     pbar.close()
                     if test_loader is not None:
                         with torch.set_grad_enabled(False):

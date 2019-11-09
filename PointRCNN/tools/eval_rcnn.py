@@ -42,7 +42,7 @@ parser.add_argument('--output_dir', type=str, \
     default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/KITTI/output", \
         help='specify an output directory if needed')
 parser.add_argument("--ckpt_dir", type=str, \
-    default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/PointRCNN.pth", \
+    default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rcnn/default/ckpt/checkpoint_round_6_part_3_epoch_1.pth", \
         help="specify a ckpt directory to be evaluated if needed")
 
 parser.add_argument('--save_result', action='store_true', default=False, help='save evaluation results to files')
@@ -682,7 +682,8 @@ def eval_one_epoch_joint(model, dataloader, epoch_id, result_dir, logger):
 
     if cfg.TEST.SPLIT != 'test':
         logger.info('Averate Precision:')
-        name_to_class = {'Car': 0, 'Pedestrian': 1, 'Cyclist': 2}
+        name_to_class = {"car": 0, "motorcycle": 1, "bus": 2, "bicycle": 3, \
+        "truck": 4, "pedestrian": 5, "other_vehicle": 6, "animal": 7, "emergency_vehicle": 8}
         ap_result_str, ap_dict = kitti_evaluate(dataset.label_dir, final_output_dir, label_split_file=split_file,
                                                 current_class=name_to_class[cfg.CLASSES])
         logger.info(ap_result_str)
@@ -911,6 +912,8 @@ if __name__ == "__main__":
 
     if args.output_dir is not None:
         root_result_dir = args.output_dir
+        
+    print(root_result_dir)
 
     os.makedirs(root_result_dir, exist_ok=True)
 

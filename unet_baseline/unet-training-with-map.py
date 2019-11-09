@@ -43,7 +43,7 @@ import torchvision.models as models
 
 from utils.transform import *
 
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from apex import amp
 from ranger import *
 import learning_schedules_fastai as lsf
@@ -341,7 +341,7 @@ def unet_training(model_name,
             X = X.to(device).float()  # [N, 6, H, W]
             target = target.to(device)  # [N, H, W] with class indices (0, 1)
             
-            prediction, _ = model(X)  # [N, 2, H, W]
+            prediction, _ = model(X)  # [N, C, H, W]
             loss = F.cross_entropy(prediction, target, weight=class_weights)
 
             target = target.clone().unsqueeze_(1)
@@ -375,7 +375,7 @@ def unet_training(model_name,
 
                         X = X.to(device).float()  # [N, 3, H, W]
                         target = target.to(device)  # [N, H, W] with class indices (0, 1)
-                        prediction, _ = model(X)  # [N, 2, H, W]
+                        prediction, _ = model(X)  # [N, C, H, W]
 
                         ce_loss = F.cross_entropy(prediction, target, weight=class_weights).detach().cpu().numpy()
 

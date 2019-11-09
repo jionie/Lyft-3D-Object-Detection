@@ -225,14 +225,20 @@ def unet_training(model_name,
     input_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_input.png")))
     target_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_target.png")))
     map_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_map.png")))
-
-    train_input_filepaths = input_filepaths[:int(0.8*len(input_filepaths))]
-    train_target_filepaths = target_filepaths[:int(0.8*len(target_filepaths))]
-    train_map_filepaths = map_filepaths[:int(0.8*len(map_filepaths))]
     
-    valid_input_filepaths = input_filepaths[int(0.8*len(input_filepaths)):]
-    valid_target_filepaths = target_filepaths[int(0.8*len(target_filepaths)):]
-    valid_map_filepaths = map_filepaths[int(0.8*len(map_filepaths)):]
+    idx = [i for i in range(len(input_filepaths))]
+    random.seed(SEED)
+    random.shuffle(idx)
+    train_idx = idx[:int(0.8 * len(idx))]
+    valid_idx = idx[int(0.8 * len(idx)):]
+
+    train_input_filepaths = [input_filepaths[i] for i in train_idx]
+    train_target_filepaths = [target_filepaths[i] for i in train_idx]
+    train_map_filepaths = [map_filepaths[i] for i in train_idx]
+    
+    valid_input_filepaths = [input_filepaths[i] for i in valid_idx]
+    valid_target_filepaths = [target_filepaths[i] for i in valid_idx]
+    valid_map_filepaths = [map_filepaths[i] for i in valid_idx]
 
     train_dataset = BEVImageDataset(input_filepaths=train_input_filepaths, target_filepaths=train_target_filepaths, \
         type="train", img_size=SIZE, map_filepaths=train_map_filepaths)

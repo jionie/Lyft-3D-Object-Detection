@@ -60,6 +60,7 @@ parser.add_argument('--model', type=str, default='deep_se50', required=False, he
 parser.add_argument('--optimizer', type=str, default='Ranger', required=False, help='specify the optimizer')
 parser.add_argument("--lr_scheduler", type=str, default='WarmRestart', required=False, help="specify the lr scheduler")
 parser.add_argument("--batch_size", type=int, default=16, required=False, help="specify the batch size for training")
+parser.add_argument("--lr", type=float, default=4e-3, required=False, help="specify the initial lr for training")
 parser.add_argument("--valid_batch_size", type=int, default=64, required=False, help="specify the batch size for validating")
 parser.add_argument("--num_epoch", type=int, default=50, required=False, help="specify the total epoch")
 parser.add_argument("--accumulation_steps", type=int, default=4, required=False, help="specify the accumulation steps")
@@ -129,6 +130,7 @@ def num_children(m: nn.Module):
 def deeplab_training(model_name,
                   optimizer_name,
                   lr_scheduler_name,
+                  lr,
                   batch_size,
                   valid_batch_size,
                   num_epoch,
@@ -139,7 +141,7 @@ def deeplab_training(model_name,
                   load_pretrain
                   ):
 
-    train_dataset, valid_dataset, train_dataloader, valid_dataloader = generate_dataset_loader(train_data_folder, batch_size, valid_batch_size)
+    train_dataset, valid_dataset, train_dataloader, valid_dataloader = generate_dataset_loader(train_data_folder, batch_size, valid_batch_size, SEED)
 
 
 
@@ -180,9 +182,6 @@ def deeplab_training(model_name,
         model.load_pretrain(checkpoint_filepath)
     model = model.to(device)
 
-    # optim = torch.optim.Adam(model.parameters(), lr=1e-3)
-    lr = 1e-4
-    
     if optimizer_name == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     elif optimizer_name == "adamonecycle":
@@ -319,6 +318,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    deeplab_training(args.model, args.optimizer, args.lr_scheduler, args.batch_size, args.valid_batch_size, \
+    deeplab_training(args.model, args.optimizer, args.lr_scheduler, args.lr, args.batch_size, args.valid_batch_size, \
                     args.num_epoch, args.start_epoch, args.accumulation_steps, args.train_data_folder, \
                     args.checkpoint_folder, args.load_pretrain)

@@ -35,7 +35,7 @@
 
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
-import semantic_segmentation.network.mynn as mynn
+from .mynn import *
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
@@ -65,10 +65,10 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = mynn.Norm2d(planes)
+        self.bn1 = Norm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
-        self.bn2 = mynn.Norm2d(planes)
+        self.bn2 = Norm2d(planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -100,12 +100,12 @@ class Bottleneck(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = mynn.Norm2d(planes)
+        self.bn1 = Norm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
                                padding=1, bias=False)
-        self.bn2 = mynn.Norm2d(planes)
+        self.bn2 = Norm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-        self.bn3 = mynn.Norm2d(planes * self.expansion)
+        self.bn3 = Norm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
@@ -142,7 +142,7 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
-        self.bn1 = mynn.Norm2d(64)
+        self.bn1 = Norm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
@@ -165,7 +165,7 @@ class ResNet(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * block.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                mynn.Norm2d(planes * block.expansion),
+                Norm2d(planes * block.expansion),
             )
 
         layers = []

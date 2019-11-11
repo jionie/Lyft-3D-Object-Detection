@@ -38,13 +38,13 @@ from collections import OrderedDict
 from functools import partial
 import torch.nn as nn
 import torch
-import semantic_segmentation.network.mynn as mynn
+from .mynn import *
 
 def bnrelu(channels):
     """
     Single Layer BN and Relui
     """
-    return nn.Sequential(mynn.Norm2d(channels),
+    return nn.Sequential(Norm2d(channels),
                          nn.ReLU(inplace=True))
 
 class GlobalAvgPool2d(nn.Module):

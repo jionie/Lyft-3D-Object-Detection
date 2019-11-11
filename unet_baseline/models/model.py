@@ -1,4 +1,4 @@
-from models.unet import *
+from .unet import *
 
 class model_iMet(nn.Module):
     def __init__(self, model_name, IN_CHANNEL, NUM_CLASSES, SIZE):

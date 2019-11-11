@@ -365,7 +365,7 @@ def unet_training(model_name,
                 optimizer.step()
                 optimizer.zero_grad()
 
-                writer.add_scalar('train_loss', loss.item()*accumulation_steps, epoch*len(train_data_folder)*train_batch_size+tr_batch_i*train_batch_size)
+                writer.add_scalar('train_loss', loss.item()*accumulation_steps, epoch*len(train_dataloader)*train_batch_size+tr_batch_i*train_batch_size)
             
             train_losses.append(loss.detach().cpu().numpy())
 

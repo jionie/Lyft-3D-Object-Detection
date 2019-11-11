@@ -192,11 +192,18 @@ def unet_training(train_data_folder = "/media/jionie/my_disk/Kaggle/Lyft/input/3
     ############################################################################## train test splitting 0.8 / 0.2
     input_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_input.png")))
     target_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_target.png")))
+    
+    idx = [i for i in range(len(input_filepaths))]
+    random.seed(random_seed)
+    random.shuffle(idx)
+    train_idx = idx[:int(0.8 * len(idx))]
+    valid_idx = idx[int(0.8 * len(idx)):]
 
-    train_input_filepaths = input_filepaths[:int(0.8*len(input_filepaths))]
-    train_target_filepaths = target_filepaths[:int(0.8*len(target_filepaths))]
-    valid_input_filepaths = input_filepaths[int(0.8*len(input_filepaths)):]
-    valid_target_filepaths = target_filepaths[int(0.8*len(target_filepaths)):]
+    train_input_filepaths = [input_filepaths[i] for i in train_idx]
+    train_target_filepaths = [target_filepaths[i] for i in train_idx]
+    
+    valid_input_filepaths = [input_filepaths[i] for i in valid_idx]
+    valid_target_filepaths = [target_filepaths[i] for i in valid_idx]
 
     train_dataset = BEVImageDataset(input_filepaths=train_input_filepaths, target_filepaths=train_target_filepaths, type="train", img_size=SIZE, map_filepaths=None)
     valid_dataset = BEVImageDataset(input_filepaths=valid_input_filepaths, target_filepaths=valid_target_filepaths, type="valid", img_size=SIZE, map_filepaths=None)

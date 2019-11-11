@@ -156,6 +156,7 @@ def model_joint_fn_decorator():
 
         elif cfg.RCNN.LOSS_CLS == 'BinaryCrossEntropy':
             rcnn_cls_flat = rcnn_cls.view(-1)
+            # print(cls_label)
             batch_loss_cls = F.binary_cross_entropy(torch.sigmoid(rcnn_cls_flat), cls_label, reduction='none')
             cls_valid_mask = (cls_label_flat >= 0).float()
             rcnn_loss_cls = (batch_loss_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
@@ -182,7 +183,7 @@ def model_joint_fn_decorator():
 
             loss_loc, loss_angle, loss_size, reg_loss_dict = \
                 loss_utils.get_reg_loss(rcnn_reg.view(batch_size, -1)[fg_mask],
-                                        gt_boxes3d_ct.view(batch_size, 7)[fg_mask],
+                                        gt_boxes3d_ct.view(batch_size, 8)[fg_mask],
                                         loc_scope=cfg.RCNN.LOC_SCOPE,
                                         loc_bin_size=cfg.RCNN.LOC_BIN_SIZE,
                                         num_head_bin=cfg.RCNN.NUM_HEAD_BIN,

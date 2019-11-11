@@ -13,6 +13,7 @@ class KittiDataset(torch_data.Dataset):
         self.imageset_dir = os.path.join(root_dir, 'KITTI')
 
         split_dir = os.path.join(root_dir, 'KITTI', 'ImageSets', split + '.txt')
+        self.split_dir = split_dir
         self.image_idx_list = [x.strip() for x in open(split_dir).readlines()]
         self.num_sample = self.image_idx_list.__len__()
 

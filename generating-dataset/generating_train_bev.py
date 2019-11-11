@@ -137,6 +137,39 @@ def generating_train_bev():
                 raise Exception("Unknown class: {}".format(box.name))
 
             cv2.drawContours(im, np.int0([corners_voxel]), 0, (class_color, class_color, class_color), -1)
+            
+    def get_semantic_map_around_ego(map_mask, ego_pose, voxel_size, output_shape):
+    
+        def crop_image(image: np.array,
+                            x_px: int,
+                            y_px: int,
+                            axes_limit_px: int) -> np.array:
+                    x_min = int(x_px - axes_limit_px)
+                    x_max = int(x_px + axes_limit_px)
+                    y_min = int(y_px - axes_limit_px)
+                    y_max = int(y_px + axes_limit_px)
+
+                    cropped_image = image[y_min:y_max, x_min:x_max]
+
+                    return cropped_image
+
+        pixel_coords = map_mask.to_pixel_coords(ego_pose['translation'][0], ego_pose['translation'][1])
+
+        extent = voxel_size*output_shape[0]*0.5
+        scaled_limit_px = int(extent * (1.0 / (map_mask.resolution)))
+        mask_raster = map_mask.mask()
+
+        cropped = crop_image(mask_raster, pixel_coords[0], pixel_coords[1], int(scaled_limit_px * np.sqrt(2)))
+
+        ypr_rad = Quaternion(ego_pose['rotation']).yaw_pitch_roll
+        yaw_deg = -np.degrees(ypr_rad[0])
+
+        rotated_cropped = np.array(Image.fromarray(cropped).rotate(yaw_deg))
+        ego_centric_map = crop_image(rotated_cropped, rotated_cropped.shape[1] / 2, rotated_cropped.shape[0] / 2,
+                                    scaled_limit_px)[::-1]
+        
+        ego_centric_map = cv2.resize(ego_centric_map, output_shape[:2], cv2.INTER_NEAREST)
+        return ego_centric_map.astype(np.float32)/255
 
 
     def prepare_training_data_for_scene(sample_token, level5data, output_folder,
@@ -190,17 +223,23 @@ def generating_train_bev():
                 target_im = target[:,:,0] # take one channel only
 
                 cv2.imwrite(os.path.join(output_folder, "{}_target.png".format(sample_token)), target_im)
+                
+                map_mask = level5data.map[0]["mask"]
+                semantic_im = get_semantic_map_around_ego(map_mask, ego_pose, voxel_size[0], target_im.shape)
+                semantic_im = np.round(semantic_im*255).astype(np.uint8)
+                cv2.imwrite(os.path.join(output_folder, "{}_map.png".format(sample_token)), semantic_im)
 
             except Exception as e:
                 print ("Failed to load Lidar Pointcloud for {}: {}:".format(sample_token, e))
 
-    train_data_folder = '/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/bev_train_data'
+    train_data_folder = '/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/bev_data_with_map'
 
-    level5data_train = LyftDataset(data_path='.', json_path='../input/3d-object-detection-for-autonomous-vehicles/train_data', verbose=True)
+    level5data_train = LyftDataset(data_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root', \
+        json_path='/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/data', verbose=True)
     classes = ["car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle"]
 
 
-    train = pd.read_csv("/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train.csv")
+    train = pd.read_csv("/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/train.csv")
 
     for i in range(train.shape[0]):
 

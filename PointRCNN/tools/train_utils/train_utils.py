@@ -82,7 +82,7 @@ def load_checkpoint(model=None, optimizer=None, filename='checkpoint', logger=cu
         epoch = checkpoint['epoch'] if 'epoch' in checkpoint.keys() else -1
         it = checkpoint.get('it', 0.0)
         if model is not None and checkpoint['model_state'] is not None:
-            model.load_state_dict(checkpoint['model_state'])
+            model.load_state_dict(checkpoint['model_state'], strict=False)
         if optimizer is not None and checkpoint['optimizer_state'] is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state'])
         logger.info("==> Done")
@@ -112,11 +112,11 @@ def load_part_ckpt(model, filename, logger=cur_logger, total_keys=-1):
 
 
 class Trainer(object):
-    def __init__(self, model, model_fn, optimizer, ckpt_dir, lr_scheduler, bnm_scheduler,
+    def __init__(self, model, model_fn, optimizer, apex, ckpt_dir, lr_scheduler, bnm_scheduler,
                  model_fn_eval, tb_log, eval_frequency=1, lr_warmup_scheduler=None, warmup_epoch=-1,
                  grad_norm_clip=1.0):
-        self.model, self.model_fn, self.optimizer, self.lr_scheduler, self.bnm_scheduler, self.model_fn_eval = \
-            model, model_fn, optimizer, lr_scheduler, bnm_scheduler, model_fn_eval
+        self.model, self.model_fn, self.optimizer, self.apex, self.lr_scheduler, self.bnm_scheduler, self.model_fn_eval = \
+            model, model_fn, optimizer, apex, lr_scheduler, bnm_scheduler, model_fn_eval
 
         self.ckpt_dir = ckpt_dir
         self.eval_frequency = eval_frequency
@@ -124,14 +124,19 @@ class Trainer(object):
         self.lr_warmup_scheduler = lr_warmup_scheduler
         self.warmup_epoch = warmup_epoch
         self.grad_norm_clip = grad_norm_clip
+        self.eval_log_dir = os.path.split(ckpt_dir)[:-1][0] + 'eval.txt'
 
     def _train_it(self, batch):
-        self.model.train()
-
         self.optimizer.zero_grad()
+        # print(batch.keys())
         loss, tb_dict, disp_dict = self.model_fn(self.model, batch)
 
-        loss.backward()
+        if (self.apex):
+            with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            loss.backward()
+            
         clip_grad_norm_(self.model.parameters(), self.grad_norm_clip)
         self.optimizer.step()
 
@@ -144,15 +149,19 @@ class Trainer(object):
         total_loss = count = 0.0
 
         # eval one epoch
-        for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader), leave=False, desc='val'):
-            self.optimizer.zero_grad()
+        with torch.no_grad():    
+            
+            torch.cuda.empty_cache()
+            
+            for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader), leave=False, desc='val'):
+                self.optimizer.zero_grad()
 
-            loss, tb_dict, disp_dict = self.model_fn_eval(self.model, data)
+                loss, tb_dict, disp_dict = self.model_fn_eval(self.model, data)
 
-            total_loss += loss.item()
-            count += 1
-            for k, v in tb_dict.items():
-                eval_dict[k] = eval_dict.get(k, 0) + v
+                total_loss += loss.item()
+                count += 1
+                for k, v in tb_dict.items():
+                    eval_dict[k] = eval_dict.get(k, 0) + v
 
         # statistics this epoch
         for k, v in eval_dict.items():
@@ -167,7 +176,7 @@ class Trainer(object):
 
         return total_loss / count, eval_dict, cur_performance
 
-    def train(self, start_it, start_epoch, n_epochs, train_loader, test_loader=None, ckpt_save_interval=5,
+    def train(self, curr_round, curr_part, start_it, start_epoch, n_epochs, train_loader, test_loader=None, ckpt_save_interval=5,
               lr_scheduler_each_iter=False):
         eval_frequency = self.eval_frequency if self.eval_frequency > 0 else 1
 
@@ -176,6 +185,24 @@ class Trainer(object):
                 tqdm.tqdm(total=len(train_loader), leave=False, desc='train') as pbar:
 
             for epoch in tbar:
+                
+                # eval one epoch
+                if (epoch == (eval_frequency - 1)):
+                    pbar.close()
+                    if test_loader is not None:
+                        with torch.set_grad_enabled(False):
+                            val_loss, eval_dict, cur_performance = self.eval_epoch(test_loader)
+
+                        if self.tb_log is not None:
+                            self.tb_log.add_scalar('val_loss', val_loss, it)
+                            for key, val in eval_dict.items():
+                                self.tb_log.add_scalar('val_' + key, val, it)
+                    
+                    log_file = open(self.eval_log_dir, "w+")    
+                    print("round: ", curr_round, " part: ", curr_part, " val loss: ", val_loss) 
+                    print("round: ", curr_round, " part: ", curr_part, " val loss: ", val_loss, file=log_file)
+                    log_file.close()
+                
                 if self.lr_scheduler is not None and self.warmup_epoch <= epoch and (not lr_scheduler_each_iter):
                     self.lr_scheduler.step(epoch)
 
@@ -184,6 +211,8 @@ class Trainer(object):
                     self.tb_log.add_scalar('bn_momentum', self.bnm_scheduler.lmbd(epoch), it)
 
                 # train one epoch
+                self.model.train()
+                torch.cuda.empty_cache()
                 for cur_it, batch in enumerate(train_loader):
                     if lr_scheduler_each_iter:
                         self.lr_scheduler.step(it)
@@ -216,22 +245,10 @@ class Trainer(object):
                 # save trained model
                 trained_epoch = epoch + 1
                 if trained_epoch % ckpt_save_interval == 0:
-                    ckpt_name = os.path.join(self.ckpt_dir, 'checkpoint_epoch_%d' % trained_epoch)
+                    ckpt_name = os.path.join(self.ckpt_dir, 'checkpoint_round_%d_part_%d_epoch_%d' % (curr_round, curr_part, trained_epoch))
                     save_checkpoint(
                         checkpoint_state(self.model, self.optimizer, trained_epoch, it), filename=ckpt_name,
                     )
-
-                # eval one epoch
-                if (epoch % eval_frequency) == 0:
-                    pbar.close()
-                    if test_loader is not None:
-                        with torch.set_grad_enabled(False):
-                            val_loss, eval_dict, cur_performance = self.eval_epoch(test_loader)
-
-                        if self.tb_log is not None:
-                            self.tb_log.add_scalar('val_loss', val_loss, it)
-                            for key, val in eval_dict.items():
-                                self.tb_log.add_scalar('val_' + key, val, it)
 
                 pbar.close()
                 pbar = tqdm.tqdm(total=len(train_loader), leave=False, desc='train')

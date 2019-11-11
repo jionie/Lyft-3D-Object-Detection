@@ -1,1 +1,25 @@
-python3 train_rcnn.py --cfg_file cfgs/default.yaml --batch_size 16 --train_mode rpn --epochs 200 --data_root "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --gt_database "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/gt_database/train_gt_database_3level_emergency_vehicle.pkl" --output "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output"
+python3 -m export_kitti nuscenes_gt_to_kitti --lyft_dataroot "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --table_folder "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/data" --store_dataroot "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI"
+
+
+python3 -m export_kitti render_kitti --lyft_dataroot "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --table_folder "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/data" --store_dataroot "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI"
+
+
+python3 -m export_kitti nuscenes_gt_to_kitti --lyft_dataroot "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root" --table_folder "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/data" --store_dataroot "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/test_root/KITTI"
+
+
+python3 train_rcnn.py --cfg_file cfgs/default.yaml --train_mode rpn --data_root "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --output "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output" --pretrain_model "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_car_pretrain_50.pth" --rpn_ckpt "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_car_pretrain_50.pth" --rcnn_ckpt "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_car_pretrain_50.pth" --epochs 75 --sub_epochs 5 --start_epoch 0 --start_round 10 --start_part 0 --workers 4 --batch_size 16 --valid_batch_size 1 --train_with_eval
+
+
+python3 train_rcnn.py --cfg_file cfgs/default.yaml --train_mode rcnn --data_root "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --output "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output" --pretrain_model "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_car_pretrain_75.pth" --rpn_ckpt "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_car_pretrain_75.pth" --rcnn_ckpt "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/output/rpn/default/ckpt/rpn_car_pretrain_75.pth" --epochs 10 --sub_epochs 1 --start_epoch 0 --start_round 0 --start_part 0 --workers 4 --batch_size 4 --valid_batch_size 1 --train_with_eval
+
+
+python3 eval_rcnn.py --cfg_file cfgs/default.yaml
+
+
+python3 generate_gt_database.py --root_dir "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --save_dir "/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/KITTI/gt_database" --class_name Lyft --split train_part_1
+
+
+python3 create_data.py lyft_data_prep --root_path="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root" --version="lyft-trainval" --max_sweeps=10 --dataset_name="MyLyftDataset"
+
+
+python3 train.py train --config_path="/media/jionie/my_disk/Kaggle/Lyft/codes/second/second/configs/lyft/all.fhd.config" --model_dir= "/media/jionie/my_disk/Kaggle/Lyft/model/second/PointPillars"

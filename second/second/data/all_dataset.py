@@ -18,7 +18,7 @@ def create_groundtruth_database(dataset_class_name,
                                 used_classes=None,
                                 database_save_path=None,
                                 db_info_save_path=None,
-                                relative_path=True,
+                                relative_path=False,
                                 add_rgb=False,
                                 lidar_only=False,
                                 bev_only=False,
@@ -38,11 +38,15 @@ def create_groundtruth_database(dataset_class_name,
     all_db_infos = {}
 
     group_counter = 0
-    for j in prog_bar(list(range(len(dataset)))):
+    # for j in prog_bar(list(range(len(dataset)))):
+    for j in range(len(dataset)):
         image_idx = j
         sensor_data = dataset.get_sensor_data(j)
         if "image_idx" in sensor_data["metadata"]:
-            image_idx = sensor_data["metadata"]["image_idx"]
+            if dataset_class_name == "MyLeftDataset":
+                image_idx = sensor_data["metadata"]["token"]
+            else:
+                image_idx = sensor_data["metadata"]["image_idx"]
         points = sensor_data["lidar"]["points"]
         annos = sensor_data["lidar"]["annotations"]
         gt_boxes = annos["boxes"]
@@ -58,6 +62,7 @@ def create_groundtruth_database(dataset_class_name,
             difficulty = annos["difficulty"]
 
         num_obj = gt_boxes.shape[0]
+        print(gt_boxes)
         point_indices = box_np_ops.points_in_rbbox(points, gt_boxes)
         for i in range(num_obj):
             filename = f"{image_idx}_{names[i]}_{i}.bin"
@@ -112,6 +117,7 @@ def create_groundtruth_database_parallel(dataset_class_name,
                                 lidar_only=False,
                                 bev_only=False,
                                 coors_range=None):
+
     dataset = get_dataset_class(dataset_class_name)(
         info_path=info_path,
         root_path=data_path,
@@ -126,9 +132,13 @@ def create_groundtruth_database_parallel(dataset_class_name,
     database_save_path.mkdir(parents=True, exist_ok=True)
     all_db_infos = {}
 
-    for j in prog_bar(list(range(len(dataset)))):
+    print(root_path)
+    
+    # for j in prog_bar(list(range(len(dataset)))):
+    for j in range(len(dataset)):
         image_idx = j
         sensor_data = dataset.get_sensor_data(j)
+        print(sensor_data)
         if "image_idx" in sensor_data["metadata"]:
             image_idx = sensor_data["metadata"]["image_idx"]
         points = sensor_data["lidar"]["points"]

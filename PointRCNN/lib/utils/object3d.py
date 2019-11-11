@@ -1,19 +1,18 @@
 import numpy as np
 
 
-def cls_type_to_id(cls_type):
-    type_to_id = {'Car': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Van': 4}
+def cls_type_to_id(cls_type, type_to_id):
     if cls_type not in type_to_id.keys():
         return -1
     return type_to_id[cls_type]
 
 
 class Object3d(object):
-    def __init__(self, line):
+    def __init__(self, line, type_to_id):
         label = line.strip().split(' ')
         self.src = line
         self.cls_type = label[0]
-        self.cls_id = cls_type_to_id(self.cls_type)
+        self.cls_id = cls_type_to_id(self.cls_type, type_to_id=type_to_id)
         self.trucation = float(label[1])
         self.occlusion = float(label[2])  # 0:fully visible 1:partly occluded 2:largely occluded 3:unknown
         self.alpha = float(label[3])

@@ -2,7 +2,6 @@
 # based on the code written by Alex Lang and Holger Caesar, 2019.
 # Licensed under the Creative Commons [see licence.txt]
 
-import os
 from pathlib import Path
 from typing import Any, List, Tuple, Union
 
@@ -31,17 +30,16 @@ class KittiDB:
         self._kitti_tokens = []
 
         split_dir = self.root / "image_2"
-        _tokens = os.listdir(split_dir)
-        _tokens = [t.replace(".png", "") for t in _tokens]
+        _tokens = [t.stem for t in split_dir.glob("*")]
         _tokens.sort()
         self.tokens = _tokens
 
-        # KITTI LIDAR has the x-axis pointing forward, but our LIDAR points to the right. So we need to apply a
-        # 90 degree rotation around to yaw (z-axis) in order to align.
+        # KITTI LIDAR has the x-axis pointing forward, but our LIDAR points backwards. So we need to apply a
+        # 180 degree rotation around to yaw (z-axis) in order to align.
         # The quaternions will be used a lot of time. We store them as instance variables so that we don't have
         # to create a new one every single time.
-        self.kitti_to_nu_lidar = Quaternion(axis=(0, 0, 1), angle=np.pi / 2)
-        self.kitti_to_nu_lidar_inv = Quaternion(axis=(0, 0, 1), angle=np.pi / 2).inverse
+        self.kitti_to_nu_lidar = Quaternion(axis=(0, 0, 1), angle=np.pi)
+        self.kitti_to_nu_lidar_inv = self.kitti_to_nu_lidar.inverse
 
     @staticmethod
     def parse_label_line(label_line) -> dict:
@@ -80,7 +78,7 @@ class KittiDB:
         velo_to_cam_rot: Quaternion,
         velo_to_cam_trans: np.ndarray,
         r0_rect: Quaternion,
-        kitti_to_nu_lidar_inv: Quaternion = Quaternion(axis=(0, 0, 1), angle=np.pi / 2).inverse,
+        kitti_to_nu_lidar_inv: Quaternion = Quaternion(axis=(0, 0, 1), angle=np.pi).inverse,
     ) -> Box:
         """Transform from nuScenes lidar frame to KITTI reference frame.
 
@@ -98,14 +96,14 @@ class KittiDB:
         box = box.copy()
 
         # Rotate to KITTI lidar.
-        box.rotate(kitti_to_nu_lidar_inv)
+        box.rotate_around_origin(kitti_to_nu_lidar_inv)
 
         # Transform to KITTI camera.
-        box.rotate(velo_to_cam_rot)
+        box.rotate_around_origin(velo_to_cam_rot)
         box.translate(velo_to_cam_trans)
 
         # Rotate to KITTI rectified camera.
-        box.rotate(r0_rect)
+        box.rotate_around_origin(r0_rect)
 
         # KITTI defines the box center as the bottom center of the object.
         # We use the true center, so we need to adjust half height in y direction.
@@ -276,11 +274,11 @@ class KittiDB:
                 # 3: Transform to KITTI LIDAR coord system. First transform from rectified camera to camera, then
                 # camera to KITTI lidar.
 
-                box.rotate(Quaternion(matrix=transforms["r0_rect"]).inverse)
+                box.rotate_around_origin(Quaternion(matrix=transforms["r0_rect"]).inverse)
                 box.translate(-transforms["velo_to_cam"]["T"])
-                box.rotate(Quaternion(matrix=transforms["velo_to_cam"]["R"]).inverse)
+                box.rotate_around_origin(Quaternion(matrix=transforms["velo_to_cam"]["R"]).inverse)
                 # 4: Transform to nuScenes LIDAR coord system.
-                box.rotate(self.kitti_to_nu_lidar)
+                box.rotate_around_origin(self.kitti_to_nu_lidar)
 
                 # Set score or NaN.
                 box.score = score
@@ -494,10 +492,12 @@ class KittiDB:
                     transforms = self.get_transforms(token, self.root)
                     for box in boxes:
                         # Undo the transformations in get_boxes() to get back to the camera frame.
-                        box.rotate(self.kitti_to_nu_lidar_inv)  # In KITTI lidar frame.
-                        box.rotate(Quaternion(matrix=transforms["velo_to_cam"]["R"]))
+                        box.rotate_around_origin(self.kitti_to_nu_lidar_inv)  # In KITTI lidar frame.
+                        box.rotate_around_origin(Quaternion(matrix=transforms["velo_to_cam"]["R"]))
                         box.translate(transforms["velo_to_cam"]["T"])  # In KITTI camera frame, un-rectified.
-                        box.rotate(Quaternion(matrix=transforms["r0_rect"]))  # In KITTI camera frame, rectified.
+                        box.rotate_around_origin(
+                            Quaternion(matrix=transforms["r0_rect"])
+                        )  # In KITTI camera frame, rectified.
 
                         # Filter boxes outside the image (relevant when visualizing nuScenes data in KITTI format).
                         if not box_in_image(box, transforms["p_left"][:3, :3], im.size, vis_level=BoxVisibility.ANY):

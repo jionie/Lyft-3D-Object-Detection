@@ -5,10 +5,10 @@ import lib.utils.object3d as object3d
 import torch
 
 
-def get_objects_from_label(label_file):
+def get_objects_from_label(label_file, type_to_id):
     with open(label_file, 'r') as f:
         lines = f.readlines()
-    objects = [object3d.Object3d(line) for line in lines]
+    objects = [object3d.Object3d(line, type_to_id) for line in lines]
     return objects
 
 
@@ -178,10 +178,10 @@ def in_hull(p, hull):
 
 
 def objs_to_boxes3d(obj_list):
-    boxes3d = np.zeros((obj_list.__len__(), 7), dtype=np.float32)
+    boxes3d = np.zeros((obj_list.__len__(), 8), dtype=np.float32)
     for k, obj in enumerate(obj_list):
-        boxes3d[k, 0:3], boxes3d[k, 3], boxes3d[k, 4], boxes3d[k, 5], boxes3d[k, 6] \
-            = obj.pos, obj.h, obj.w, obj.l, obj.ry
+        boxes3d[k, 0:3], boxes3d[k, 3], boxes3d[k, 4], boxes3d[k, 5], boxes3d[k, 6], boxes3d[k, 7] \
+            = obj.pos, obj.h, obj.w, obj.l, obj.ry, obj.cls_id
     return boxes3d
 
 

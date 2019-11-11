@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
 try:
-    from models.modelzoo.convert_from_mxnet import convert_from_mxnet, has_mxnet
+    from .convert_from_mxnet import convert_from_mxnet, has_mxnet
 except:
     from dataSet.convert_from_mxnet import convert_from_mxnet, has_mxnet
 
@@ -106,7 +106,7 @@ def dpn68(num_classes=1000, pretrained=False, test_time_pool=True):
         num_classes=num_classes, test_time_pool=test_time_pool)
     if pretrained:
         if model_urls['dpn68']:
-            model.load_state_dict(model_zoo.load_url(model_urls['dpn68']))
+            model.load_state_dict(model_zoo.load_url(model_urls['dpn68']), strict=False)
         elif has_mxnet and os.path.exists('./pretrained/'):
             convert_from_mxnet(model, checkpoint_prefix='./pretrained/dpn68')
         else:

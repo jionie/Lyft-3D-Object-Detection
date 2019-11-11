@@ -11,25 +11,55 @@ from sklearn.externals import joblib
 
 
 class KittiRCNNDataset(KittiDataset):
-    def __init__(self, root_dir, npoints=16384, split='train', classes='Car', mode='TRAIN', random_select=True,
+    def __init__(self, root_dir, npoints=16384, split='train', classes='car', mode='TRAIN', random_select=True,
                  logger=None, rcnn_training_roi_dir=None, rcnn_training_feature_dir=None, rcnn_eval_roi_dir=None,
                  rcnn_eval_feature_dir=None, gt_database_dir=None):
         super().__init__(root_dir=root_dir, split=split)
-        if classes == 'Car':
-            self.classes = ('Background', 'Car')
+        if classes == 'car':
+            self.classes = ("Background", "car")
+            self.type_to_id = {"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
             aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
-        elif classes == 'People':
-            self.classes = ('Background', 'Pedestrian', 'Cyclist')
-        elif classes == 'Pedestrian':
-            self.classes = ('Background', 'Pedestrian')
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_ped')
-        elif classes == 'Cyclist':
-            self.classes = ('Background', 'Cyclist')
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_cyclist')
-        elif classes == 'Lyft':
-            self.self_define_dataset = True
-            self.classes = ["Background", "car", "motorcycle", "bus", "bicycle", "truck", "pedestrian", "other_vehicle", "animal", "emergency_vehicle"]
-            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene_lyft')
+        elif classes == 'motorcycle':
+            self.classes = ('Background', 'motorcycle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'bus':
+            self.classes = ('Background', 'bus')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'bicycle':
+            self.classes = ('Background', 'bicycle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'truck':
+            self.classes = ('Background', 'truck')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'pedestrian':
+            self.classes = ('Background', 'pedestrian')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'other_vehicle':
+            self.classes = ('Background', 'other_vehicle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'animal':
+            self.classes = ('Background', 'animal')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
+        elif classes == 'emergency_vehicle':
+            self.classes = ('Background', 'emergency_vehicle')
+            self.type_to_id ={"Background": 0, "car": 1, "motorcycle": 2, "bus": 3, "bicycle": 4, \
+        "truck": 5, "pedestrian": 6, "other_vehicle": 7, "animal": 8, "emergency_vehicle": 9}
+            aug_scene_root_dir = os.path.join(root_dir, 'KITTI', 'aug_scene')
         else:
             assert False, "Invalid classes: %s" % classes
 
@@ -67,7 +97,7 @@ class KittiRCNNDataset(KittiDataset):
         assert mode in ['TRAIN', 'EVAL', 'TEST'], 'Invalid mode: %s' % mode
         self.mode = mode
 
-        if cfg.RPN.ENABLED:
+        if cfg.RPN.ENABLED and (not cfg.RPN.FIXED):
             if gt_database_dir is not None:
                 # error to dump train with pickle, we use joblib
                 if self.mode == 'TRAIN':
@@ -131,7 +161,7 @@ class KittiRCNNDataset(KittiDataset):
             label_file = os.path.join(self.label_dir, '%s.txt' % idx)
 
         assert os.path.exists(label_file)
-        return kitti_utils.get_objects_from_label(label_file)
+        return kitti_utils.get_objects_from_label(label_file, self.type_to_id)
 
     def get_image(self, idx):
         return super().get_image(idx)
@@ -255,6 +285,7 @@ class KittiRCNNDataset(KittiDataset):
 
     def get_rpn_sample(self, index, aug=False):
         sample_id = self.sample_id_list[index]
+        # print(sample_id)
         
         if self.split == 'train_aug':
             calib = self.get_calib(sample_id)
@@ -888,7 +919,6 @@ class KittiRCNNDataset(KittiDataset):
         sample_id = self.sample_id_list[index]
         rpn_xyz, rpn_features, rpn_intensity, seg_mask = \
             self.get_rpn_features(self.rcnn_training_feature_dir, sample_id)
-
         # load rois and gt_boxes3d for this sample
         roi_file = os.path.join(self.rcnn_training_roi_dir, '%s.txt' % sample_id)
         roi_obj_list = kitti_utils.get_objects_from_label(roi_file)
@@ -1007,7 +1037,7 @@ class KittiRCNNDataset(KittiDataset):
                 gt_of_rois[k] = aug_boxes3d[1]
 
         valid_mask = (pts_empty_flag == 0).astype(np.int32)
-
+        
         # regression valid mask
         reg_valid_mask = (iou_of_rois > cfg.RCNN.REG_FG_THRESH).astype(np.int32) & valid_mask
 
@@ -1100,6 +1130,7 @@ class KittiRCNNDataset(KittiDataset):
 
         gt_obj_list = self.filtrate_objects(self.get_label(sample_id))
         gt_boxes3d = kitti_utils.objs_to_boxes3d(gt_obj_list)
+        print(gt_boxes3d)
 
         sample_info = {'sample_id': sample_id,
                        'rpn_xyz': rpn_xyz,
@@ -1126,7 +1157,7 @@ class KittiRCNNDataset(KittiDataset):
                 max_gt = 0
                 for k in range(batch_size):
                     max_gt = max(max_gt, batch[k][key].__len__())
-                batch_gt_boxes3d = np.zeros((batch_size, max_gt, 7), dtype=np.float32)
+                batch_gt_boxes3d = np.zeros((batch_size, max_gt, 8), dtype=np.float32)
                 for i in range(batch_size):
                     batch_gt_boxes3d[i, :batch[i][key].__len__(), :] = batch[i][key]
                 ans_dict[key] = batch_gt_boxes3d

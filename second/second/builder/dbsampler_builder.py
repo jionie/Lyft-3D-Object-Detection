@@ -1,4 +1,5 @@
 import pickle
+from sklearn.externals import joblib
 
 import second.core.preprocess as prep
 from second.builder import preprocess_builder
@@ -18,8 +19,8 @@ def build(sampler_config):
     grot_range = cfg.global_random_rotation_range_per_object
     groups = [dict(g.name_to_max_num) for g in groups]
     info_path = cfg.database_info_path
-    with open(info_path, 'rb') as f:
-        db_infos = pickle.load(f)
+    print(info_path)
+    db_infos = joblib.load(open(info_path, 'rb'))
     grot_range = list(grot_range)
     if len(grot_range) == 0:
         grot_range = None

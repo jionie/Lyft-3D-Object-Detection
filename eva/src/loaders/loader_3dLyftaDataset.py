@@ -1,11 +1,3 @@
-"""
-This file implements the dataset loading methods for UA-detrac
-If any problem occurs, please email jaeho.bang@gmail.com
-
-
-@Jaeho Bang
-
-"""
 
 import argparse
 import os
@@ -335,7 +327,7 @@ class LyftEvaLoader(AbstractLoader):
 def get_parser():
     parser = argparse.ArgumentParser(description='Define arguments for loader')
     parser.add_argument('--image_path', default='small-data',
-                        help='Define data folder within eva/data/uadetrac')
+                        help='Define data folder within input/train/images ....')
     parser.add_argument('--anno_path', default='small-annotations',
                         help='Define annotation folder within '
                              'eva/data/uadetrac')
@@ -365,7 +357,7 @@ if __name__ == "__main__":
     import time
 
     st = time.time()
-    loader = UADetracLoader(args)
+    loader = LyftEvaLoader(args)
     images = loader.load_images()
     labels = loader.load_labels()
     boxes = loader.load_boxes()

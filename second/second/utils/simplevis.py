@@ -5,7 +5,7 @@ import numpy as np
 from second.core import box_np_ops
 
 
-@numba.jit(nopython=True)
+# @numba.jit(nopython=True)
 def _points_to_bevmap_reverse_kernel(
         points,
         voxel_size,
@@ -17,13 +17,14 @@ def _points_to_bevmap_reverse_kernel(
         # density_norm_num=16,
         with_reflectivity=False,
         max_voxels=40000):
+    # import pdb; pdb.set_trace()
     # put all computations to one loop.
     # we shouldn't create large array in main jit code, otherwise
     # reduce performance
     N = points.shape[0]
     ndim = 3
     ndim_minus_1 = ndim - 1
-    grid_size = (coors_range[3:] - coors_range[:3]) / voxel_size
+    grid_size = (coors_range[3:] - coors_range[:3]) / voxel_size # = (1000, 600, 1)
     # np.round(grid_size)
     # grid_size = np.round(grid_size).astype(np.int64)(np.int32)
     grid_size = np.round(grid_size, 0, grid_size).astype(np.int32)
@@ -78,24 +79,25 @@ def points_to_bev(points,
             format: xyzxyz, minmax
         with_reflectivity: bool. if True, will add a intensity map to bev map.
     Returns:
-        bev_map: [num_height_maps + 1(2), H, W] float tensor. 
-            `WARNING`: bev_map[-1] is num_points map, NOT density map, 
-            because calculate density map need more time in cpu rather than gpu. 
-            if with_reflectivity is True, bev_map[-2] is intensity map. 
+        bev_map: [num_height_maps + 1(2), H, W] float tensor.
+            `WARNING`: bev_map[-1] is num_points map, NOT density map,
+            because calculate density map need more time in cpu rather than gpu.
+            if with_reflectivity is True, bev_map[-2] is intensity map.
     """
     if not isinstance(voxel_size, np.ndarray):
         voxel_size = np.array(voxel_size, dtype=points.dtype)
     if not isinstance(coors_range, np.ndarray):
         coors_range = np.array(coors_range, dtype=points.dtype)
-    voxelmap_shape = (coors_range[3:] - coors_range[:3]) / voxel_size
+    voxelmap_shape = (coors_range[3:] - coors_range[:3]) / voxel_size # 1000, 600, 1
     voxelmap_shape = tuple(np.round(voxelmap_shape).astype(np.int32).tolist())
-    voxelmap_shape = voxelmap_shape[::-1]  # DHW format
+    # import pdb; pdb.set_trace()
+    voxelmap_shape = voxelmap_shape[::-1]  # DHW format, 1, 600, 1000
     coor_to_voxelidx = -np.ones(shape=voxelmap_shape, dtype=np.int32)
     # coors_2d = np.zeros(shape=(max_voxels, 2), dtype=np.int32)
     bev_map_shape = list(voxelmap_shape)
-    bev_map_shape[0] += 1
+    bev_map_shape[0] += 1 # bev_map_shape = (2, 600, 1000)
     height_lowers = np.linspace(
-        coors_range[2], coors_range[5], voxelmap_shape[0], endpoint=False)
+        coors_range[2], coors_range[5], voxelmap_shape[0], endpoint=False) #array([-3.])
     if with_reflectivity:
         bev_map_shape[0] += 1
     bev_map = np.zeros(shape=bev_map_shape, dtype=points.dtype)
@@ -114,7 +116,7 @@ def point_to_vis_bev(points,
         voxel_size = [0.1, 0.1, 0.1]
     if coors_range is None:
         coors_range = [-50, -50, -3, 50, 50, 1]
-    voxel_size[2] = coors_range[5] - coors_range[2]
+    voxel_size[2] = coors_range[5] - coors_range[2] # 1-(-3)=4
     bev_map = points_to_bev(
         points, voxel_size, coors_range, max_voxels=max_voxels)
     height_map = (bev_map[0] * 255).astype(np.uint8)
@@ -154,18 +156,28 @@ def draw_box_in_bev(img,
     Args:
         boxes: center format.
     """
+    # img: (600, 1000, 3)
+    # coors_range: array([-50, -30,  -3,  50,  30,   1])
+    # boxes: N, 7: x,y,z,w,l,h,theta
+
+    #import pdb; pdb.set_trace()
     coors_range = np.array(coors_range)
     bev_corners = box_np_ops.center_to_corner_box2d(
         boxes[:, [0, 1]], boxes[:, [3, 4]], boxes[:, 6])
+    # [x, y], [w, l], [theta]
+    # bev_corners: N, 4, 2
     bev_corners -= coors_range[:2]
     bev_corners *= np.array(
         img.shape[:2])[::-1] / (coors_range[3:5] - coors_range[:2])
-    standup = box_np_ops.corner_to_standup_nd(bev_corners)
+    #[1000, 600] / [100, 60] => multiply by 10 to all coords.
+
+    standup = box_np_ops.corner_to_standup_nd(bev_corners) # [30, 4]
     text_center = standup[:, 2:]
     text_center[:, 1] -= (standup[:, 3] - standup[:, 1]) / 2
 
     bev_lines = np.concatenate(
-        [bev_corners[:, [0, 2, 3]], bev_corners[:, [1, 3, 0]]], axis=2)
+        [bev_corners[:, [0, 1, 2, 3]], bev_corners[:, [1, 2, 3, 0]]], axis=2)
+    # bev_lines.shape = N, 3, 4
     bev_lines = bev_lines.reshape(-1, 4)
     colors = np.tile(np.array(color).reshape(1, 3), [bev_lines.shape[0], 1])
     colors = colors.astype(np.int32)

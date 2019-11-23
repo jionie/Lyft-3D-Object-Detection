@@ -138,7 +138,7 @@ class SpMiddleFHD(nn.Module):
                 nn.ConvTranspose2d)
         sparse_shape = np.array(output_shape[1:4]) + [1, 0, 0]
         # sparse_shape[0] = 11
-        print(sparse_shape)
+        #print(sparse_shape)
         self.sparse_shape = sparse_shape
         self.voxel_output_shape = output_shape
         # input: # [1600, 1200, 41]
@@ -198,11 +198,12 @@ class SpMiddleFHD(nn.Module):
         coors = coors.int()
         ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
                                       batch_size)
-        # t = time.time()
-        # torch.cuda.synchronize()
+        t = time.time()
+        #torch.cuda.synchronize()
+        #import pdb; pdb.set_trace()
         ret = self.middle_conv(ret)
-        # torch.cuda.synchronize()
-        # print("spconv forward time", time.time() - t)
+        #torch.cuda.synchronize()
+        #print("spconv forward time", time.time() - t)
         ret = ret.dense()
 
         N, C, D, H, W = ret.shape

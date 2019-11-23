@@ -1,7 +1,7 @@
 # Lyft-3D-Object-Detection
 please arrange input folder as 
 ```plain
-input
+input/3d-object-detection-for-autonomous-vehicles
 └── train_root
 |      ├── data
 |      ├── images

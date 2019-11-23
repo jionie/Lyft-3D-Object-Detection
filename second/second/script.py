@@ -3,10 +3,11 @@ from google.protobuf import text_format
 from second.protos import pipeline_pb2
 from pathlib import Path
 from second.utils import config_tool
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def train_multi_rpn_layer_num():
-    config_path = "./configs/car.lite.config"
+    config_path = "./configs/nuscenes/all.fhd.config"
     model_root = Path.home() / "second_test"  # don't forget to change this.
     config = pipeline_pb2.TrainEvalPipelineConfig()
     with open(config_path, "r") as f:
@@ -16,20 +17,23 @@ def train_multi_rpn_layer_num():
     model_cfg = config.model.second
     layer_nums = [2, 4, 7, 9]
     for l in layer_nums:
-        model_dir = str(model_root / f"car_lite_L{l}")
+        model_dir = str(model_root / f"all_fhd_{l}")
         model_cfg.rpn.layer_nums[:] = [l]
-        train(config, model_dir)
+        train(config, model_dir, resume=True)
 
 
 def eval_multi_threshold():
-    config_path = "./configs/car.fhd.config"
-    ckpt_name = "/path/to/your/model_ckpt" # don't forget to change this.
-    assert "/path/to/your" not in ckpt_name
+    config_path = "./configs/nuscenes/all.fhd.config"
+    ckpt_name = "/home/ags/second_test/all_fhd_2/" # don't forget to change this.
+    #assert "/path/to/your" not in ckpt_name
     config = pipeline_pb2.TrainEvalPipelineConfig()
     with open(config_path, "r") as f:
         proto_str = f.read()
         text_format.Merge(proto_str, config)
     model_cfg = config.model.second
+
+    #model_cfg['nms_score_threshold'] = 0.3 ### extra added by ags
+    #import pdb; pdb.set_trace()
     threshs = [0.3]
     for thresh in threshs:
         model_cfg.nms_score_threshold = thresh
@@ -44,4 +48,5 @@ def eval_multi_threshold():
 
 
 if __name__ == "__main__":
-    eval_multi_threshold()
+    #eval_multi_threshold()
+    train_multi_rpn_layer_num()

@@ -23,6 +23,30 @@ from second.utils.timer import simple_timer
 class NuScenesDataset(Dataset):
     NumPointFeatures = 4  # xyz, timestamp. set 4 to use kitti pretrain
     NameMapping = {
+        'car':'car',
+        'pedestrian': 'pedestrian',
+        'animal': 'animal',
+        'other_vehicle': 'other_vehicle',
+        'bus':'bus',
+        'motorcycle':'motorcycle',
+        'truck':'truck',
+        'emergency_vehicle':'emergency_vehicle',
+        'bicycle':'bicycle'
+     }
+
+    DefaultAttribute = {
+        'car':'object_action_parked',
+        'pedestrian': 'object_action_walking',
+        'animal': 'object_action_running',
+        'other_vehicle': 'object_action_parked',
+        'bus':'object_action_parked',
+        'motorcycle':'object_action_parked',
+        'truck':'object_action_parked',
+        'emergency_vehicle':'object_action_parked',
+        'bicycle':'object_action_parked'
+     }
+    '''
+    NameMapping = {
         'movable_object.barrier': 'barrier',
         'vehicle.bicycle': 'bicycle',
         'vehicle.bus.bendy': 'bus',
@@ -34,6 +58,7 @@ class NuScenesDataset(Dataset):
         'human.pedestrian.child': 'pedestrian',
         'human.pedestrian.construction_worker': 'pedestrian',
         'human.pedestrian.police_officer': 'pedestrian',
+        'human.pedestrian.stroller': 'pedestrian',
         'movable_object.trafficcone': 'traffic_cone',
         'vehicle.trailer': 'trailer',
         'vehicle.truck': 'truck'
@@ -50,7 +75,7 @@ class NuScenesDataset(Dataset):
         "barrier": "",
         "traffic_cone": "",
     }
-
+    '''
     def __init__(self,
                  root_path,
                  info_path,
@@ -60,6 +85,7 @@ class NuScenesDataset(Dataset):
         self._root_path = Path(root_path)
         with open(info_path, 'rb') as f:
             data = pickle.load(f)
+        #import pdb; pdb.set_trace()
         self._nusc_infos = data["infos"]
         self._nusc_infos = list(
             sorted(self._nusc_infos, key=lambda e: e["timestamp"]))
@@ -137,7 +163,9 @@ class NuScenesDataset(Dataset):
         return gt_annos
 
     def __getitem__(self, idx):
+        #import pdb; pdb.set_trace()
         input_dict = self.get_sensor_data(idx)
+        # input_dict['lidar']['point'].shape -> (1190855, 4)
         example = self._prep_func(input_dict=input_dict)
         example["metadata"] = input_dict["metadata"]
         if "anchors_mask" in example:
@@ -145,6 +173,7 @@ class NuScenesDataset(Dataset):
         return example
 
     def get_sensor_data(self, query):
+        #import pdb; pdb.set_trace()
         idx = query
         read_test_image = False
         if isinstance(query, dict):
@@ -163,17 +192,25 @@ class NuScenesDataset(Dataset):
             },
         }
         lidar_path = Path(info['lidar_path'])
-        points = np.fromfile(
-            str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
+        try:
+            points = np.fromfile(
+                str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
+        except Exception as e:
+            print(e)
+            import pdb; pdb.set_trace()
         points[:, 3] /= 255
         points[:, 4] = 0
         sweep_points_list = [points]
         ts = info["timestamp"] / 1e6
 
         for sweep in info["sweeps"]:
-            points_sweep = np.fromfile(
-                str(sweep["lidar_path"]), dtype=np.float32,
-                count=-1).reshape([-1, 5])
+            try:
+                points_sweep = np.fromfile(
+                    str(sweep["lidar_path"]), dtype=np.float32,
+                    count=-1).reshape([-1, 5])
+            except Exception as e:
+                print(e)
+                import pdb; pdb.set_trace()
             sweep_ts = sweep["timestamp"] / 1e6
             points_sweep[:, 3] /= 255
             points_sweep[:, :3] = points_sweep[:, :3] @ sweep[
@@ -182,7 +219,9 @@ class NuScenesDataset(Dataset):
             points_sweep[:, 4] = ts - sweep_ts
             sweep_points_list.append(points_sweep)
 
+        #import pdb; pdb.set_trace()
         points = np.concatenate(sweep_points_list, axis=0)[:, [0, 1, 2, 4]]
+        # points: before (62359, 4) -> (686172, 4)
 
         if read_test_image:
             if Path(info["cam_front_path"]).exists():
@@ -305,9 +344,68 @@ class NuScenesDataset(Dataset):
         }
 
     def evaluation_nusc(self, detections, output_dir):
+        #import pdb; pdb.set_trace()
         version = self.version
         eval_set_map = {
-            "v1.0-mini": "mini_train",
+            "v1.0-mini": "mini_val", ## @ags, train->val
+            "v1.0-trainval": "val",
+        }
+        #gt_annos = self.ground_truth_annotations
+        #if gt_annos is None:
+        #    return None
+        nusc_annos = {}
+        mapped_class_names = self._class_names
+        token2info = {}
+        for info in self._nusc_infos:
+            token2info[info["token"]] = info
+        annos = []
+        print('Preparing pred_data dict ..')
+        for det in detections:
+            #break
+            boxes = _second_det_to_nusc_box(det)
+            boxes = _lidar_nusc_box_to_global(
+                token2info[det["metadata"]["token"]], boxes,
+                mapped_class_names, "cvpr_2019")
+            for i, box in enumerate(boxes):
+                name = mapped_class_names[box.label]
+                nusc_anno = {
+                    "sample_token": det["metadata"]["token"],
+                    "translation": box.center.tolist(),
+                    "size": box.wlh.tolist(),
+                    "rotation": box.orientation.elements.tolist(),
+                    "name": name,
+                    "score": box.score,
+                }
+                annos.append(nusc_anno)
+        eval_set = eval_set_map[self.version]
+        pred_file_path = Path(output_dir) / f"pred_data_{eval_set}.json"
+        print(f'Saving predictions at {str(pred_file_path)}')
+        with open(pred_file_path, "w") as f:
+            json.dump(annos, f)
+
+        del annos, detections
+
+        gt_file_path = self._root_path / f'gt_data_{eval_set}.json'
+        eval_main_file = Path(__file__).resolve().parent / "nusc_eval.py"
+        # why add \"{}\"? to support path with spaces.
+        print('Running eval.py')
+        cmd = f"python {str(eval_main_file)}"
+        cmd += f" --gt_file_path=\"{str(gt_file_path)}\""
+        cmd += f" --pred_file_path=\"{str(pred_file_path)}\""
+        cmd += f" --output_dir=\"{output_dir}\""
+        # use subprocess can release all nusc memory after evaluation
+        t0 = time.time()
+        subprocess.check_output(cmd, shell=True)
+        diff = time.time() - t0
+        print("Total time taken : %02d:%02d" % (diff // 60, diff % 60))
+
+
+
+
+    def evaluation_nusc_old(self, detections, output_dir):
+        version = self.version
+        eval_set_map = {
+            "v1.0-mini": "mini_val", ## @ags, train->val
             "v1.0-trainval": "val",
         }
         gt_annos = self.ground_truth_annotations
@@ -320,6 +418,7 @@ class NuScenesDataset(Dataset):
             token2info[info["token"]] = info
         for det in detections:
             annos = []
+            ##### ...
             boxes = _second_det_to_nusc_box(det)
             for i, box in enumerate(boxes):
                 name = mapped_class_names[box.label]
@@ -327,6 +426,7 @@ class NuScenesDataset(Dataset):
                 if len(token2info[det["metadata"]["token"]]["sweeps"]) == 0:
                     velocity = (np.nan, np.nan)
                 box.velocity = np.array([*velocity, 0.0])
+            ##### ...
             boxes = _lidar_nusc_box_to_global(
                 token2info[det["metadata"]["token"]], boxes,
                 mapped_class_names, "cvpr_2019")
@@ -403,6 +503,8 @@ class NuScenesDataset(Dataset):
         """
         # res_kitti = self.evaluation_kitti(detections, output_dir)
         res_nusc = self.evaluation_nusc(detections, output_dir)
+        return
+        '''
         res = {
             "results": {
                 "nusc": res_nusc["results"]["nusc"],
@@ -418,6 +520,7 @@ class NuScenesDataset(Dataset):
             },
         }
         return res
+        '''
 
 
 @register_dataset
@@ -552,6 +655,8 @@ def _lidar_nusc_box_to_global(info, boxes, classes, eval_version="cvpr_2019"):
         # Move box to ego vehicle coord system
         box.rotate(pyquaternion.Quaternion(info['lidar2ego_rotation']))
         box.translate(np.array(info['lidar2ego_translation']))
+
+        '''
         from nuscenes.eval.detection.config import eval_detection_configs
         # filter det in ego.
         cls_range_map = eval_detection_configs[eval_version]["class_range"]
@@ -559,6 +664,8 @@ def _lidar_nusc_box_to_global(info, boxes, classes, eval_version="cvpr_2019"):
         det_range = cls_range_map[classes[box.label]]
         if radius > det_range:
             continue
+        '''
+
         # Move box to global coord system
         box.rotate(pyquaternion.Quaternion(info['ego2global_rotation']))
         box.translate(np.array(info['ego2global_translation']))
@@ -599,6 +706,7 @@ def _fill_trainval_infos(nusc,
                          val_scenes,
                          test=False,
                          max_sweeps=10):
+    #import pdb; pdb.set_trace()
     train_nusc_infos = []
     val_nusc_infos = []
     from pyquaternion import Quaternion
@@ -610,11 +718,13 @@ def _fill_trainval_infos(nusc,
                              sd_rec['calibrated_sensor_token'])
         pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
-
+        '''Returns the data path as well as all annotations related to that sample_data.
+        The boxes are transformed into the current sensor's coordinate frame.'''
         cam_path, _, cam_intrinsic = nusc.get_sample_data(cam_front_token)
         assert Path(lidar_path).exists(), (
             "you must download all trainval data, key-frame only dataset performs far worse than sweeps."
         )
+        ### what does sweeps even mean?? they are lidar sweeps right?
         info = {
             "lidar_path": lidar_path,
             "cam_front_path": cam_path,
@@ -637,7 +747,7 @@ def _fill_trainval_infos(nusc,
         sd_rec = nusc.get('sample_data', sample['data']["LIDAR_TOP"])
         sweeps = []
         while len(sweeps) < max_sweeps:
-            if not sd_rec['prev'] == "":
+            if not sd_rec['prev'] == "": ### Why prev? why not next?
                 sd_rec = nusc.get('sample_data', sd_rec['prev'])
                 cs_record = nusc.get('calibrated_sensor',
                                      sd_rec['calibrated_sensor_token'])
@@ -656,7 +766,7 @@ def _fill_trainval_infos(nusc,
                 l2e_t_s = sweep["lidar2ego_translation"]
                 e2g_r_s = sweep["ego2global_rotation"]
                 e2g_t_s = sweep["ego2global_translation"]
-                # sweep->ego->global->ego'->lidar
+                # sweep->ego->global->ego'->lidar ### what's ego'?
                 l2e_r_s_mat = Quaternion(l2e_r_s).rotation_matrix
                 e2g_r_s_mat = Quaternion(e2g_r_s).rotation_matrix
 
@@ -703,8 +813,14 @@ def _fill_trainval_infos(nusc,
             info["gt_boxes"] = gt_boxes
             info["gt_names"] = names
             info["gt_velocity"] = velocity.reshape(-1, 2)
+
+            '''@ags'''
+            '''each annotation has -1 in num_lidar_pts in lyft'''
+            #info["num_lidar_pts"] = np.array(
+            #    [a["num_lidar_pts"] for a in annotations])
             info["num_lidar_pts"] = np.array(
-                [a["num_lidar_pts"] for a in annotations])
+                [1 for a in annotations])
+            '''done'''
             info["num_radar_pts"] = np.array(
                 [a["num_radar_pts"] for a in annotations])
         if sample["scene_token"] in train_scenes:
@@ -716,15 +832,33 @@ def _fill_trainval_infos(nusc,
 
 def create_nuscenes_infos(root_path, version="v1.0-trainval", max_sweeps=10):
     from nuscenes.nuscenes import NuScenes
-    nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
+    from lyft_dataset_sdk.lyftdataset import LyftDataset
+    if version == "v1.0-trainval":
+        nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
+    elif version == "v1.0-test":
+        nusc = LyftDataset(data_path=root_path, json_path=Path(root_path) / "data", verbose=True)
     from nuscenes.utils import splits
     available_vers = ["v1.0-trainval", "v1.0-test", "v1.0-mini"]
     assert version in available_vers
     if version == "v1.0-trainval":
         train_scenes = splits.train
         val_scenes = splits.val
+
+        '''@ags'''
+        import random
+        random.seed(69)
+        names = [s['name'] for s in nusc.scene]
+        val_scenes = random.choices(names, k=int(0.2 * len(names)))
+        train_scenes = [s for s in names if s not in val_scenes]
+        name = 'host-a004-lidar0-1232905117299287546-1232905142198246226'
+        train_scenes.remove(name)
+        val_scenes.append(name)
+        #import pdb; pdb.set_trace()
+
     elif version == "v1.0-test":
-        train_scenes = splits.test
+        '''@ags'''
+        train_scenes = [s['name'] for s in nusc.scene]
+        #train_scenes = splits.test
         val_scenes = []
     elif version == "v1.0-mini":
         train_scenes = splits.mini_train

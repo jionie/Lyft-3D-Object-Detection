@@ -112,7 +112,11 @@ class Unet(nn.Module):
         if model_name == 'efficientnet-b5':
             self.startconv = nn.Conv2d(IN_CHANNEL, 3, kernel_size=1)
             self.basemodel = EfficientNet.from_pretrained('efficientnet-b5')
-            self.planes = [24, 40, 112, 320]
+            self.planes = [40, 40, 128, 176]
+#            self.down1 = nn.Conv2d(40, self.planes[0], kernel_size=1)
+#            self.down2 = nn.Conv2d(64, self.planes[1], kernel_size=1)
+#            self.down3 = nn.Conv2d(176, self.planes[2], kernel_size=1)
+#            self.down4 = nn.Conv2d(512, self.planes[3], kernel_size=1)
             self.down = False
             
         # if model_name == 'efficientnet-b7':
@@ -212,4 +216,4 @@ class Unet(nn.Module):
             ],
             1
         )
-        return self.final(x), fc
+        return self.final(x)

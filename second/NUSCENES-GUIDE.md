@@ -103,7 +103,7 @@ barrier Nusc dist AP@0.5, 1.0, 2.0, 4.0
 ```
 
 * all.pp.mida.config: 30 epoch, 1/2 dataset (NuscenesDatasetD2), train speed: 10 sample/s, ~200000 anchors
-
+```
 car Nusc dist AP@0.5, 1.0, 2.0, 4.0
 61.91, 76.75, 80.94, 82.53
 bicycle Nusc dist AP@0.5, 1.0, 2.0, 4.0
@@ -124,7 +124,7 @@ truck Nusc dist AP@0.5, 1.0, 2.0, 4.0
 8.39, 20.62, 27.37, 31.12
 barrier Nusc dist AP@0.5, 1.0, 2.0, 4.0
 10.61, 31.31, 40.60, 46.33
-
+```
 * all.pp.config: 50 epoch, 1/8 dataset (NuscenesDatasetD8), train speed: 4 sample/s, ~1200000 anchors
 
 ```

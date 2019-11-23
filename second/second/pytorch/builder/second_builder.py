@@ -48,6 +48,7 @@ def build(model_cfg: second_pb2.VoxelNet, voxel_generator,
         assert len(nms_score_thresholds) == num_class
     else:
         nms_score_thresholds = [c.nms_score_threshold for c in classes_cfg]
+    #import pdb; pdb.set_trace()
     if len(model_cfg.target_assigner.nms_iou_thresholds) != 0:
         nms_iou_thresholds = list(model_cfg.target_assigner.nms_iou_thresholds)
         assert len(nms_iou_thresholds) == num_class
@@ -60,7 +61,8 @@ def build(model_cfg: second_pb2.VoxelNet, voxel_generator,
         assert all([e == nms_post_max_sizes[0] for e in nms_post_max_sizes])
         assert all([e == nms_score_thresholds[0] for e in nms_score_thresholds])
         assert all([e == nms_iou_thresholds[0] for e in nms_iou_thresholds])
-    
+        # @ags: so, we gotta make all pre/pos max, score and iou thresholds equal??
+
     num_input_features = model_cfg.num_point_features
     loss_norm_type_dict = {
         0: LossNormType.NormByNumExamples,

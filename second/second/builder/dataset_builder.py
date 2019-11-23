@@ -53,6 +53,7 @@ def build(input_reader_config,
         raise ValueError('input_reader_config not of type '
                          'input_reader_pb2.InputReader.')
     prep_cfg = input_reader_config.preprocess
+    #import pdb; pdb.set_trace()
     dataset_cfg = input_reader_config.dataset
     num_point_features = model_config.num_point_features
     out_size_factor = get_downsample_factor(model_config)
@@ -62,10 +63,11 @@ def build(input_reader_config,
     db_sampler = None
     if len(db_sampler_cfg.sample_groups) > 0 or db_sampler_cfg.database_info_path != "":  # enable sample
         db_sampler = dbsampler_builder.build(db_sampler_cfg)
+    #import pdb; pdb.set_trace()
     grid_size = voxel_generator.grid_size
     feature_map_size = grid_size[:2] // out_size_factor
     feature_map_size = [*feature_map_size, 1][::-1]
-    print("feature_map_size", feature_map_size)
+    #print("feature_map_size", feature_map_size)
     assert all([n != '' for n in target_assigner.classes]), "you must specify class_name in anchor_generators."
     dataset_cls = get_dataset_class(dataset_cfg.dataset_class_name)
     assert dataset_cls.NumPointFeatures >= 3, "you must set this to correct value"
@@ -103,16 +105,17 @@ def build(input_reader_config,
         random_flip_y=prep_cfg.random_flip_y,
         sample_importance=prep_cfg.sample_importance)
 
+    #import pdb; pdb.set_trace()
     ret = target_assigner.generate_anchors(feature_map_size)
     class_names = target_assigner.classes
     anchors_dict = target_assigner.generate_anchors_dict(feature_map_size)
     anchors_list = []
     for k, v in anchors_dict.items():
         anchors_list.append(v["anchors"])
-    
+
     # anchors = ret["anchors"]
     anchors = np.concatenate(anchors_list, axis=0)
-    anchors = anchors.reshape([-1, target_assigner.box_ndim])
+    anchors = anchors.reshape([-1, target_assigner.box_ndim]) # (199888, 7)
     assert np.allclose(anchors, ret["anchors"].reshape(-1, target_assigner.box_ndim))
     matched_thresholds = ret["matched_thresholds"]
     unmatched_thresholds = ret["unmatched_thresholds"]
@@ -126,10 +129,12 @@ def build(input_reader_config,
         "anchors_dict": anchors_dict,
     }
     prep_func = partial(prep_func, anchor_cache=anchor_cache)
+
     dataset = dataset_cls(
         info_path=dataset_cfg.kitti_info_path,
         root_path=dataset_cfg.kitti_root_path,
         class_names=class_names,
         prep_func=prep_func)
 
+    #import pdb; pdb.set_trace()
     return dataset

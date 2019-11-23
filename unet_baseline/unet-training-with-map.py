@@ -53,22 +53,22 @@ import albumentations
 from albumentations import torch as AT
 
 parser = argparse.ArgumentParser(description="arg parser")
-parser.add_argument('--model', type=str, default='dpn68', required=False, help='specify the backbone model')
+parser.add_argument('--model', type=str, default='efficientnet-b5', required=False, help='specify the backbone model')
 parser.add_argument('--optimizer', type=str, default='Ranger', required=False, help='specify the optimizer')
 parser.add_argument("--lr_scheduler", type=str, default='adamonecycle', required=False, help="specify the lr scheduler")
-parser.add_argument("--batch_size", type=int, default=32, required=False, help="specify the batch size for training")
+parser.add_argument("--batch_size", type=int, default=16, required=False, help="specify the batch size for training")
 parser.add_argument("--valid_batch_size", type=int, default=64, required=False, help="specify the batch size for validating")
 parser.add_argument("--num_epoch", type=int, default=50, required=False, help="specify the total epoch")
 parser.add_argument("--accumulation_steps", type=int, default=4, required=False, help="specify the accumulation steps")
-parser.add_argument("--start_epoch", type=int, default=0, required=False, help="specify the start epoch for continue training")
+parser.add_argument("--start_epoch", type=int, default=1, required=False, help="specify the start epoch for continue training")
 parser.add_argument("--train_data_folder", type=str, default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/bev_data_with_map/", \
     required=False, help="specify the folder for training data")
 parser.add_argument("--checkpoint_folder", type=str, default="/media/jionie/my_disk/Kaggle/Lyft/model/unet", \
     required=False, help="specify the folder for checkpoint")
-parser.add_argument('--load_pretrain', action='store_true', default=True, help='whether to load pretrain model')
+parser.add_argument('--load_pretrain', action='store_true', default=False, help='whether to load pretrain model')
 
 ############################################################################## seed all
-SEED = 42
+SEED = 2000
 def seed_everything(seed=SEED):
     random.seed(seed)
     os.environ['PYHTONHASHSEED'] = str(seed)
@@ -347,7 +347,7 @@ def unet_training(model_name,
             X = X.to(device).float()  # [N, 6, H, W]
             target = target.to(device)  # [N, H, W] with class indices (0, 1)
             
-            prediction, _ = model(X)  # [N, C, H, W]
+            prediction = model(X)  # [N, C, H, W]
             loss = F.cross_entropy(prediction, target, weight=class_weights)
 
             target = target.clone().unsqueeze_(1)
@@ -381,7 +381,7 @@ def unet_training(model_name,
 
                         X = X.to(device).float()  # [N, 3, H, W]
                         target = target.to(device)  # [N, H, W] with class indices (0, 1)
-                        prediction, _ = model(X)  # [N, C, H, W]
+                        prediction = model(X)  # [N, C, H, W]
 
                         ce_loss = F.cross_entropy(prediction, target, weight=class_weights).detach().cpu().numpy()
 

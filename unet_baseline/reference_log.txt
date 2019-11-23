@@ -1,0 +1,39 @@
+Epoch 1
+Epoch 1
+Epoch 1
+Epoch 1
+Epoch 1
+Train Loss: 0.047331188 Valid Loss: 0.039894797 Valid CE Loss: 0.039894793
+Validation metric improved (inf --> 0.039895).  Saving model ...
+Epoch 2
+Train Loss: 0.039785706 Valid Loss: 0.03696937 Valid CE Loss: 0.03696937
+Validation metric improved (0.039895 --> 0.036969).  Saving model ...
+Epoch 3
+Train Loss: 0.037372608 Valid Loss: 0.034988694 Valid CE Loss: 0.034988694
+Validation metric improved (0.036969 --> 0.034989).  Saving model ...
+Epoch 4
+Train Loss: 0.03589672 Valid Loss: 0.033916187 Valid CE Loss: 0.033916187
+Validation metric improved (0.034989 --> 0.033916).  Saving model ...
+Epoch 5
+Train Loss: 0.03523325 Valid Loss: 0.032925326 Valid CE Loss: 0.032925326
+Validation metric improved (0.033916 --> 0.032925).  Saving model ...
+Epoch 6
+Train Loss: 0.034312088 Valid Loss: 0.032245327 Valid CE Loss: 0.032245327
+Validation metric improved (0.032925 --> 0.032245).  Saving model ...
+Epoch 7
+Train Loss: 0.03327063 Valid Loss: 0.031169022 Valid CE Loss: 0.031169025
+Validation metric improved (0.032245 --> 0.031169).  Saving model ...
+Epoch 8
+Train Loss: 0.03330021 Valid Loss: 0.031244187 Valid CE Loss: 0.031244185
+Epoch 9
+Train Loss: 0.03276677 Valid Loss: 0.03105573 Valid CE Loss: 0.03105573
+Validation metric improved (0.031169 --> 0.031056).  Saving model ...
+Epoch 10
+Train Loss: 0.03196567 Valid Loss: 0.030063132 Valid CE Loss: 0.030063132
+Validation metric improved (0.031056 --> 0.030063).  Saving model ...
+Epoch 11
+Train Loss: 0.03150121 Valid Loss: 0.029907525 Valid CE Loss: 0.029907523
+Validation metric improved (0.030063 --> 0.029908).  Saving model ...
+Epoch 12
+Train Loss: 0.030958371 Valid Loss: 0.03000526 Valid CE Loss: 0.03000526
+Epoch 13

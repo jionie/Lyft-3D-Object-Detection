@@ -56,15 +56,15 @@ from apex import amp
 
 
 parser = argparse.ArgumentParser(description="arg parser")
-parser.add_argument('--model', type=str, default='WideResnet38', required=False, help='specify the backbone model')
+parser.add_argument('--model', type=str, default='deep_se101', required=False, help='specify the backbone model')
 parser.add_argument('--optimizer', type=str, default='Ranger', required=False, help='specify the optimizer')
 parser.add_argument("--lr_scheduler", type=str, default='WarmRestart', required=False, help="specify the lr scheduler")
 parser.add_argument("--batch_size", type=int, default=8, required=False, help="specify the batch size for training")
-parser.add_argument("--lr", type=float, default=1e-4, required=False, help="specify the initial lr for training")
+parser.add_argument("--lr", type=float, default=1e-2, required=False, help="specify the initial lr for training")
 parser.add_argument("--valid_batch_size", type=int, default=24, required=False, help="specify the batch size for validating")
 parser.add_argument("--num_epoch", type=int, default=50, required=False, help="specify the total epoch")
 parser.add_argument("--accumulation_steps", type=int, default=4, required=False, help="specify the accumulation steps")
-parser.add_argument("--start_epoch", type=int, default=6, required=False, help="specify the start epoch for continue training")
+parser.add_argument("--start_epoch", type=int, default=0, required=False, help="specify the start epoch for continue training")
 parser.add_argument("--train_data_folder", type=str, default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/bev_data_with_map/", \
     required=False, help="specify the folder for training data")
 parser.add_argument("--checkpoint_folder", type=str, default="/media/jionie/my_disk/Kaggle/Lyft/model/deeplab", \
@@ -72,7 +72,7 @@ parser.add_argument("--checkpoint_folder", type=str, default="/media/jionie/my_d
 parser.add_argument('--load_pretrain', action='store_true', default=False, help='whether to load pretrain model')
 
 ############################################################################## seed all
-SEED = 323
+SEED = 10086
 def seed_everything(seed=SEED):
     random.seed(seed)
     os.environ['PYHTONHASHSEED'] = str(seed)
@@ -160,11 +160,14 @@ def deeplab_training(model_name,
 
 
     ############################################################################## define unet model with backbone
-    def get_model(model_name="deep_se50", in_channel=6, num_classes=1, criterion=SoftDiceLoss_binary()):
+    def get_model(model_name="deep_se101", in_channel=6, num_classes=1, criterion=SoftDiceLoss_binary()):
         if model_name == 'deep_se50':
             from semantic_segmentation.network.deepv3 import DeepSRNX50V3PlusD_m1  # r
             model = DeepSRNX50V3PlusD_m1(in_channel=6, num_classes=num_classes, criterion=SoftDiceLoss_binary())
-        if model_name == 'WideResnet38':
+        elif model_name == 'deep_se101':
+            from semantic_segmentation.network.deepv3 import DeepSRNX101V3PlusD_m1  # r
+            model = DeepSRNX101V3PlusD_m1(in_channel=6, num_classes=num_classes, criterion=SoftDiceLoss_binary())
+        elif model_name == 'WideResnet38':
             from semantic_segmentation.network.deepv3 import DeepWR38V3PlusD_m1  # r
             model = DeepWR38V3PlusD_m1(in_channel=6, num_classes=num_classes, criterion=SoftDiceLoss_binary())
         elif model_name == 'unet_ef3':

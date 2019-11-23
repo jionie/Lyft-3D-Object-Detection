@@ -122,10 +122,13 @@ class DefaultHead(nn.Module):
 class VoxelNetNuscenesMultiHead(VoxelNet):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        assert self._num_class == 10
+        assert self._num_class == 9
         assert isinstance(self.rpn, rpn.RPNNoHead)
-        self.small_classes = ["pedestrian", "traffic_cone", "bicycle", "motorcycle", "barrier"]
-        self.large_classes = ["car", "truck", "trailer", "bus", "construction_vehicle"]
+        #self.small_classes = ["pedestrian", "traffic_cone", "bicycle", "motorcycle", "barrier"]
+        #self.large_classes = ["car", "truck", "trailer", "bus", "construction_vehicle"]
+        self.small_classes = ["pedestrian", "animal", "bicycle", "motorcycle"]
+        self.large_classes = ["car", "truck", "emergency_vehicle", "bus", "other_vehicle"]
+
         small_num_anchor_loc = sum([self.target_assigner.num_anchors_per_location_class(c) for c in self.small_classes])
         large_num_anchor_loc = sum([self.target_assigner.num_anchors_per_location_class(c) for c in self.large_classes])
         self.small_head = SmallObjectHead(
@@ -134,7 +137,7 @@ class VoxelNetNuscenesMultiHead(VoxelNet):
             num_anchor_per_loc=small_num_anchor_loc,
             encode_background_as_zeros=self._encode_background_as_zeros,
             use_direction_classifier=self._use_direction_classifier,
-            box_code_size=self._box_coder.code_size, 
+            box_code_size=self._box_coder.code_size,
             num_direction_bins=self._num_direction_bins,
         )
         self.large_head = DefaultHead(
@@ -143,7 +146,7 @@ class VoxelNetNuscenesMultiHead(VoxelNet):
             num_anchor_per_loc=large_num_anchor_loc,
             encode_background_as_zeros=self._encode_background_as_zeros,
             use_direction_classifier=self._use_direction_classifier,
-            box_code_size=self._box_coder.code_size, 
+            box_code_size=self._box_coder.code_size,
             num_direction_bins=self._num_direction_bins,
         )
 

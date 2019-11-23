@@ -1,86 +1,25 @@
-# SECOND for KITTI/NuScenes object detection (1.6.0 Alpha)
-SECOND detector.
+# SECOND for Lyft object detection
+Source codes from [second.pytorch](https://github.com/pyaf/second.pytorch)
 
-"Alpha" means there may be many bugs, config format may change, spconv API may change.
+Modifications:
+
+* Support for Lyft's level 5 dataset.
+* Some small tweaks to get the nuscenes version working for lyft.
+* The evaluation code is modified to include competition's evaluation metric which uses a range of IoU thresholds for mAP (unlike the original metric which used a range distance thresholds).
+* second/notebooks/*.ipynb files contain my submission and inference testing code, it needs some cleanup
 
 ONLY support python 3.6+, pytorch 1.0.0+. Tested in Ubuntu 16.04/18.04/Windows 10.
-
-If you want to train nuscenes dataset, see [this](NUSCENES-GUIDE.md).
-
-## News
-
-2019-4-1: SECOND V1.6.0alpha released: New Data API, [NuScenes](https://www.nuscenes.org) support, [PointPillars](https://github.com/nutonomy/second.pytorch) support, fp16 and multi-gpu support.
-
-2019-3-21: SECOND V1.5.1 (minor improvement and bug fix) released! 
-
-2019-1-20: SECOND V1.5 released! Sparse convolution-based network.
-
-See [release notes](RELEASE.md) for more details.
-
-_WARNING_: you should rerun info generation after every code update.
-
-### Performance in KITTI validation set (50/50 split)
-
-```car.fhd.config``` + 160 epochs (25 fps in 1080Ti):
-
-```
-Car AP@0.70, 0.70, 0.70:
-bbox AP:90.77, 89.50, 80.80
-bev  AP:90.28, 87.73, 79.67
-3d   AP:88.84, 78.43, 76.88
-```
-
-```car.fhd.config``` + 50 epochs + super converge (6.5 hours) +  (25 fps in 1080Ti):
-
-```
-Car AP@0.70, 0.70, 0.70:
-bbox AP:90.78, 89.59, 88.42
-bev  AP:90.12, 87.87, 86.77
-3d   AP:88.62, 78.31, 76.62
-```
-
-```car.fhd.onestage.config``` + 50 epochs + super converge (6.5 hours) +  (25 fps in 1080Ti):
-
-```
-Car AP@0.70, 0.70, 0.70:
-bbox AP:97.65, 89.59, 88.72
-bev  AP:90.38, 88.20, 86.98
-3d   AP:89.16, 78.78, 77.41
-```
-
-### Performance in NuScenes validation set (all.pp.config, NuScenes mini train set, 3517 samples, not v1.0-mini)
-
-```
-car Nusc dist AP@0.5, 1.0, 2.0, 4.0
-62.90, 73.07, 76.77, 78.79
-bicycle Nusc dist AP@0.5, 1.0, 2.0, 4.0
-0.00, 0.00, 0.00, 0.00
-bus Nusc dist AP@0.5, 1.0, 2.0, 4.0
-9.53, 26.17, 38.01, 40.60
-construction_vehicle Nusc dist AP@0.5, 1.0, 2.0, 4.0
-0.00, 0.00, 0.44, 1.43
-motorcycle Nusc dist AP@0.5, 1.0, 2.0, 4.0
-9.25, 12.90, 13.69, 14.11
-pedestrian Nusc dist AP@0.5, 1.0, 2.0, 4.0
-61.44, 62.61, 64.09, 66.35
-traffic_cone Nusc dist AP@0.5, 1.0, 2.0, 4.0
-11.63, 13.14, 15.81, 21.22
-trailer Nusc dist AP@0.5, 1.0, 2.0, 4.0
-0.80, 9.90, 17.61, 23.26
-truck Nusc dist AP@0.5, 1.0, 2.0, 4.0
-9.81, 21.40, 27.55, 30.34
-```
 
 ## Install
 
 ### 1. Clone code
 
 ```bash
-git clone https://github.com/traveller59/second.pytorch.git
+git clone https://github.com/pyaf/second.pytorch.git
 cd ./second.pytorch/second
 ```
 
-### 2. Install dependence python packages
+### 2. Install dependencies
 
 It is recommend to use Anaconda package manager.
 
@@ -92,79 +31,49 @@ conda install scikit-image scipy numba pillow matplotlib
 pip install fire tensorboardX protobuf opencv-python
 ```
 
-If you don't have Anaconda:
-
-```bash
-pip install numba scikit-image scipy pillow
-```
-
-Follow instructions in [spconv](https://github.com/traveller59/spconv) to install spconv. 
+Follow instructions in [spconv](https://github.com/traveller59/spconv) to install spconv.
 
 If you want to train with fp16 mixed precision (train faster in RTX series, Titan V/RTX and Tesla V100, but I only have 1080Ti), you need to install [apex](https://github.com/NVIDIA/apex).
 
-If you want to use NuScenes dataset, you need to install [nuscenes-devkit](https://github.com/nutonomy/nuscenes-devkit).
+### 3. add second.pytorch/ to PYTHONPATH
 
-### 3. Setup cuda for numba (will be removed in 1.6.0 release)
+Add following line to your .bashrc, update the path accordingly
 
-you need to add following environment variable for numba.cuda, you can add them to ~/.bashrc:
-
-```bash
-export NUMBAPRO_CUDA_DRIVER=/usr/lib/x86_64-linux-gnu/libcuda.so
-export NUMBAPRO_NVVM=/usr/local/cuda/nvvm/lib64/libnvvm.so
-export NUMBAPRO_LIBDEVICE=/usr/local/cuda/nvvm/libdevice
-```
-
-### 4. add second.pytorch/ to PYTHONPATH
+`export PYTHONPATH="${PYTHONPATH}:/media/ags/DATA/CODE/kaggle/lyft-3d-object-detection/second.pytorch"`
 
 ## Prepare dataset
 
-* KITTI Dataset preparation
+* [Lyft]() Dataset preparation
 
-Download KITTI dataset and create some directories first:
+Download Lyft dataset:
 
 ```plain
-└── KITTI_DATASET_ROOT
-       ├── training    <-- 7481 train data
-       |   ├── image_2 <-- for visualization
-       |   ├── calib
-       |   ├── label_2
-       |   ├── velodyne
-       |   └── velodyne_reduced <-- empty directory
-       └── testing     <-- 7580 test data
-           ├── image_2 <-- for visualization
-           ├── calib
-           ├── velodyne
-           └── velodyne_reduced <-- empty directory
-```
-
-Then run
-```bash
-python create_data.py kitti_data_prep --data_path=KITTI_DATASET_ROOT
-```
-
-* [NuScenes](https://www.nuscenes.org) Dataset preparation
-
-Download NuScenes dataset:
-```plain
-└── NUSCENES_TRAINVAL_DATASET_ROOT
-       ├── samples       <-- key frames
-       ├── sweeps        <-- frames without annotation
+└── LYFT_TRAINVAL_DATASET_ROOT
+       ├── lidar         <-- lidar files
        ├── maps          <-- unused
-       └── v1.0-trainval <-- metadata and annotations
-└── NUSCENES_TEST_DATASET_ROOT
-       ├── samples       <-- key frames
-       ├── sweeps        <-- frames without annotation
+       ├── images        <-- unused
+       ├── data          <-- metadata and annotations
+       └── v1.0-trainval <-- softlink to `data`
+
+└── LYFT_TEST_DATASET_ROOT
+       ├── lidar         <-- lidar files
        ├── maps          <-- unused
-       └── v1.0-test     <-- metadata
+       ├── images        <-- unused
+       ├── data          <-- metadata and annotations
+       └── v1.0-test     <-- softlink to `data`
 ```
 
-Then run
+NOTE: `v1.0-*` folders in train/test folders are soft links to corresponding `data` folders
+
 ```bash
-python create_data.py nuscenes_data_prep --data_path=NUSCENES_TRAINVAL_DATASET_ROOT --version="v1.0-trainval" --max_sweeps=10
-python create_data.py nuscenes_data_prep --data_path=NUSCENES_TEST_DATASET_ROOT --version="v1.0-test" --max_sweeps=10
---dataset_name="NuscenesDataset"
+python create_data.py nuscenes_data_prep --root_path=LYFT_TRAINVAL_DATASET_ROOT  --version="v1.0-trainval" --dataset_name="NuScenesDataset" --max_sweeps=10
+python create_data.py nuscenes_data_prep --root_path=LYFT_TEST_DATASET_ROOT  --version="v1.0-test" --dataset_name="NuScenesDataset" --max_sweeps=10
 ```
-This will create gt database **without velocity**. to add velocity, use dataset name ```NuscenesDatasetVelo```.
+
+`LYFT_TRAINVAL_DATASET_ROOT` are full path to train set of the dataset, similaryly for `LYFT_TEST_DATASET_ROOT`. Also you need to generate ground truth info by "second/notebooks/prepare.ipynb"
+
+
+Rest of this readme is from original second implementation.
 
 * Modify config file
 
@@ -196,14 +105,10 @@ eval_input_reader: {
 
 ## Usage
 
-### train
-
-I recommend to use script.py to train and eval. see script.py for more details.
-
 #### train with single GPU
 
 ```bash
-python ./pytorch/train.py train --config_path=./configs/car.fhd.config --model_dir=/path/to/model_dir
+python ./pytorch/train.py train --config_path=./configs/all.pp.lowa.config --model_dir=/path/to/model_dir
 ```
 
 #### train with multiple GPU (need test, I only have one GPU)
@@ -211,7 +116,7 @@ python ./pytorch/train.py train --config_path=./configs/car.fhd.config --model_d
 Assume you have 4 GPUs and want to train with 3 GPUs:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1,3 python ./pytorch/train.py train --config_path=./configs/car.fhd.config --model_dir=/path/to/model_dir --multi_gpu=True
+CUDA_VISIBLE_DEVICES=0,1,3 python ./pytorch/train.py train --config_path=./configs/all.pp.lowa.config --model_dir=/path/to/model_dir --multi_gpu=True
 ```
 
 Note: The batch_size and num_workers in config file is per-GPU, if you use multi-gpu, they will be multiplied by number of GPUs. Don't modify them manually.
@@ -231,30 +136,19 @@ Modify config file, set enable_mixed_precision to true.
 ### evaluate
 
 ```bash
-python ./pytorch/train.py evaluate --config_path=./configs/car.fhd.config --model_dir=/path/to/model_dir --measure_time=True --batch_size=1
+python ./pytorch/train.py evaluate --config_path=./configs/all.pp.lowa.config --model_dir=/path/to/model_dir --measure_time=True --batch_size=1
 ```
 
 * detection result will saved as a result.pkl file in model_dir/eval_results/step_xxx or save as official KITTI label format if you use --pickle_result=False.
 
-### pretrained model
+### inference
 
-You can download pretrained models in [google drive](https://drive.google.com/open?id=1YOpgRkBgmSAJwMknoXmitEArNitZz63C). The ```car_fhd``` model is corresponding to car.fhd.config.
+You can simply use "submission.ipynb" to get video result and csv result to submit to kaggle.
 
-Note that this pretrained model is trained before a bug of sparse convolution fixed, so the eval result may slightly worse. 
-
-## Docker (Deprecated. I can't push docker due to network problem.)
-
-You can use a prebuilt docker for testing:
-```
-docker pull scrin/second-pytorch 
-```
-Then run:
-```
-nvidia-docker run -it --rm -v /media/yy/960evo/datasets/:/root/data -v $HOME/pretrained_models:/root/model --ipc=host second-pytorch:latest
-python ./pytorch/train.py evaluate --config_path=./configs/car.config --model_dir=/root/model/car
-```
 
 ## Try Kitti Viewer Web
+
+I've modified original Kitti viewer to get it working for lyft inference, do give it a try after training.
 
 ### Major step
 
@@ -305,3 +199,4 @@ All training and inference code use kitti box format. So we need to convert othe
 * Kitti camera box
 
 A kitti camera box is consist of 7 elements: [x, y, z, l, h, w, ry].
+

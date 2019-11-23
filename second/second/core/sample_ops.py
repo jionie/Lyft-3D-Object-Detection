@@ -27,6 +27,8 @@ class DataBaseSamplerV2:
             for k, v in db_infos.items():
                 print(f"load {len(v)} {k} database infos")
 
+        #import pdb; pdb.set_trace()
+
         self.db_infos = db_infos
         self._rate = rate
         self._groups = groups
@@ -45,6 +47,7 @@ class DataBaseSamplerV2:
                 self._sample_max_nums += list(group_info.values())
         else:
             for group_info in groups:
+                #import pdb; pdb.set_trace()
                 group_dict = {}
                 group_names = list(group_info.keys())
                 group_name = ", ".join(group_names)
@@ -76,6 +79,7 @@ class DataBaseSamplerV2:
                 print(info_dict)
 
         self._sampler_dict = {}
+        #import pdb; pdb.set_trace()
         for k, v in self._group_db_infos.items():
             self._sampler_dict[k] = prep.BatchSampler(v, k)
         self._enable_global_rot = False
@@ -236,6 +240,8 @@ class DataBaseSamplerV2:
             return ret, np.ones((len(ret), ), dtype=np.int64)
 
     def sample_class_v2(self, name, num, gt_boxes):
+        #import pdb; pdb.set_trace()
+        # print(list(self._sampler_dict.keys))
         sampled = self._sampler_dict[name].sample(num)
         sampled = copy.deepcopy(sampled)
         num_gt = gt_boxes.shape[0]

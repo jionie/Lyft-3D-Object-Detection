@@ -1,7 +1,7 @@
-import numpy as np 
+import numpy as np
 from tensorboardX import SummaryWriter
-import json 
-from pathlib import Path 
+import json
+from pathlib import Path
 
 def _flat_nested_json_dict(json_dict, flatted, sep=".", start=""):
     for k, v in json_dict.items():
@@ -39,7 +39,7 @@ def metric_to_str(metrics, sep='.'):
 
 class SimpleModelLog:
     """For simple log.
-    generate 4 kinds of log: 
+    generate 4 kinds of log:
     1. simple log.txt, all metric dicts are flattened to produce
     readable results.
     2. TensorBoard scalars and texts
@@ -49,7 +49,7 @@ class SimpleModelLog:
     """
     def __init__(self, model_dir):
         self.model_dir = Path(model_dir)
-        self.log_file = None 
+        self.log_file = None
         self.log_mjson_file = None
         self.summary_writter = None
         self.metrics = []
@@ -66,7 +66,11 @@ class SimpleModelLog:
         if log_mjson_file_path.exists():
             with open(log_mjson_file_path, 'r') as f:
                 for line in f.readlines():
-                    self.metrics.append(json.loads(line))
+                    try:
+                        self.metrics.append(json.loads(line))
+                    except Exception as e:
+                        print(e)
+                        import pdb; pdb.set_trace()
         log_file_path = model_dir / f'log.txt'
         self.log_mjson_file = open(log_mjson_file_path, 'a')
         self.log_file = open(log_file_path, 'a')
@@ -80,8 +84,8 @@ class SimpleModelLog:
         tb_json_path = str(self.model_dir / "tensorboard_scalars.json")
         self.summary_writter.export_scalars_to_json(tb_json_path)
         self.summary_writter.close()
-        self.log_mjson_file = None 
-        self.log_file = None 
+        self.log_mjson_file = None
+        self.log_file = None
         self.summary_writter = None
 
     def log_text(self, text, step, tag="regular log"):

@@ -22,7 +22,7 @@ model
 └── unet
 ```
 ## Our plan
-Our final objective is to add eva support for storing and querying data for 3-D object detection and finish pipeline (data format changing, training and inference) for both Bird-Eye-View-Based method and PointRCNN based method (a 3D Liadar data based method). Right now, we finished pipeline for Bird-Eye-View-Based method. 
+Our final objective is to add eva support for storing and querying data for 3-D object detection and finish pipeline (data format changing, training and inference) for both Bird-Eye-View-Based method and PointPilliars based method (a 3D Liadar data based method). Right now, we finished pipeline for Bird-Eye-View-Based method. 
 
 ## Files for first code review
 For first code review please focus on Bird-Eye-View-Based method, files related are in "unet_baseline" and "generating-dataset/generating-dataet-for-bev" folder. The final result in kaggle is 0.045.

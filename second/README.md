@@ -2,24 +2,14 @@
 Source codes from [second.pytorch](https://github.com/pyaf/second.pytorch)
 
 Modifications:
-
-* Support for Lyft's level 5 dataset.
-* Some small tweaks to get the nuscenes version working for lyft.
-* The evaluation code is modified to include competition's evaluation metric which uses a range of IoU thresholds for mAP (unlike the original metric which used a range distance thresholds).
-* second/notebooks/*.ipynb files contain my submission and inference testing code, it needs some cleanup
+* configuration for Lyft dataset
+* add generating video file for submission.ipynb
 
 ONLY support python 3.6+, pytorch 1.0.0+. Tested in Ubuntu 16.04/18.04/Windows 10.
 
 ## Install
 
-### 1. Clone code
-
-```bash
-git clone https://github.com/pyaf/second.pytorch.git
-cd ./second.pytorch/second
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 It is recommend to use Anaconda package manager.
 
@@ -35,7 +25,7 @@ Follow instructions in [spconv](https://github.com/traveller59/spconv) to instal
 
 If you want to train with fp16 mixed precision (train faster in RTX series, Titan V/RTX and Tesla V100, but I only have 1080Ti), you need to install [apex](https://github.com/NVIDIA/apex).
 
-### 3. add second.pytorch/ to PYTHONPATH
+### 2. add second.pytorch/ to PYTHONPATH
 
 Add following line to your .bashrc, update the path accordingly
 
@@ -121,7 +111,7 @@ CUDA_VISIBLE_DEVICES=0,1,3 python ./pytorch/train.py train --config_path=./confi
 
 Note: The batch_size and num_workers in config file is per-GPU, if you use multi-gpu, they will be multiplied by number of GPUs. Don't modify them manually.
 
-You need to modify total step in config file. For example, 50 epochs = 15500 steps for car.lite.config and single GPU, if you use 4 GPUs, you need to divide ```steps``` and ```steps_per_eval``` by 4.
+You need to modify total step in config file. For example, if you use 4 GPUs, you need to divide ```steps``` and ```steps_per_eval``` by 4.
 
 #### train with fp16 (mixed precision)
 

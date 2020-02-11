@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
 try:
-    from .convert_from_mxnet import convert_from_mxnet, has_mxnet
+    from models.modelzoo.convert_from_mxnet import convert_from_mxnet, has_mxnet
 except:
     from dataSet.convert_from_mxnet import convert_from_mxnet, has_mxnet
 

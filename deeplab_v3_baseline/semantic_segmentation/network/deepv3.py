@@ -26,10 +26,10 @@
 import logging
 import torch
 from torch import nn
-from .SEresnext import *
-from .Resnet import *
-from .wider_resnet import wider_resnet38_a2
-from .mynn import initialize_weights, Upsample
+from semantic_segmentation.network import SEresnext
+from semantic_segmentation.network import Resnet
+from semantic_segmentation.network.wider_resnet import wider_resnet38_a2
+from semantic_segmentation.network.mynn import initialize_weights, Upsample
 
 
 class _AtrousSpatialPyramidPoolingModule(nn.Module):
@@ -110,14 +110,14 @@ class DeepV3Plus(nn.Module):
         self.skip_num = skip_num
 
         if trunk == 'seresnext-50':
-            resnet = se_resnext50_32x4d()
+            resnet = SEresnext.se_resnext50_32x4d()
         elif trunk == 'seresnext-101':
-            resnet = se_resnext101_32x4d()
+            resnet = SEresnext.se_resnext101_32x4d()
         elif trunk == 'resnet-50':
-            resnet = resnet50()
+            resnet = Resnet.resnet50()
             resnet.layer0 = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool)
         elif trunk == 'resnet-101':
-            resnet = resnet101()
+            resnet = Resnet.resnet101()
             resnet.layer0 = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool)
         else:
             raise ValueError("Not a valid network arch")
@@ -272,7 +272,7 @@ class DeepWV3Plus(nn.Module):
 
         x_size = inp.size()
         if (self.in_channel != 3):
-            inp = self.startconv(inp)
+            x = self.startconv(x)
         x = self.mod1(inp)
         m2 = self.mod2(self.pool2(x))
         x = self.mod3(self.pool3(m2))
@@ -317,11 +317,4 @@ def DeepSRNX101V3PlusD_m1(in_channel, num_classes, criterion):
     """
     return DeepV3Plus(in_channel, num_classes, trunk='seresnext-101', criterion=criterion, variant='D',
                       skip='m1')
-    
-    
-def DeepWR38V3PlusD_m1(in_channel, num_classes, criterion):
-    """
-    SeResnext 101 Based Network
-    """
-    return DeepWV3Plus(in_channel, num_classes, trunk='WideResnet38', criterion=criterion)
 

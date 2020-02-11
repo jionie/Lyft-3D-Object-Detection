@@ -2,7 +2,7 @@
 Custom Norm wrappers to enable sync BN, regular BN and for weight initialization
 """
 import torch.nn as nn
-from ..config import cfg
+from semantic_segmentation.config import cfg
 
 from apex import amp
 

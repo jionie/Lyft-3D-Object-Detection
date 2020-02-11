@@ -43,32 +43,34 @@ import torchvision.models as models
 
 from utils.transform import *
 
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 from apex import amp
-from ranger import *
-import learning_schedules_fastai as lsf
-from fastai_optim import OptimWrapper
+from utils.ranger import *
+import utils.learning_schedules_fastai as lsf
+from utils.fastai_optim import OptimWrapper
 
 import albumentations
 from albumentations import torch as AT
 
+
+############################################################################## define augments 
 parser = argparse.ArgumentParser(description="arg parser")
-parser.add_argument('--model', type=str, default='efficientnet-b5', required=False, help='specify the backbone model')
+parser.add_argument('--model', type=str, default='dpn68', required=False, help='specify the backbone model')
 parser.add_argument('--optimizer', type=str, default='Ranger', required=False, help='specify the optimizer')
 parser.add_argument("--lr_scheduler", type=str, default='adamonecycle', required=False, help="specify the lr scheduler")
-parser.add_argument("--batch_size", type=int, default=16, required=False, help="specify the batch size for training")
+parser.add_argument("--batch_size", type=int, default=32, required=False, help="specify the batch size for training")
 parser.add_argument("--valid_batch_size", type=int, default=64, required=False, help="specify the batch size for validating")
 parser.add_argument("--num_epoch", type=int, default=50, required=False, help="specify the total epoch")
 parser.add_argument("--accumulation_steps", type=int, default=4, required=False, help="specify the accumulation steps")
-parser.add_argument("--start_epoch", type=int, default=1, required=False, help="specify the start epoch for continue training")
+parser.add_argument("--start_epoch", type=int, default=0, required=False, help="specify the start epoch for continue training")
 parser.add_argument("--train_data_folder", type=str, default="/media/jionie/my_disk/Kaggle/Lyft/input/3d-object-detection-for-autonomous-vehicles/train_root/bev_data_with_map/", \
     required=False, help="specify the folder for training data")
 parser.add_argument("--checkpoint_folder", type=str, default="/media/jionie/my_disk/Kaggle/Lyft/model/unet", \
     required=False, help="specify the folder for checkpoint")
-parser.add_argument('--load_pretrain', action='store_true', default=False, help='whether to load pretrain model')
+parser.add_argument('--load_pretrain', action='store_true', default=True, help='whether to load pretrain model')
 
-############################################################################## seed all
-SEED = 2000
+############################################################################## seed all for all random seed
+SEED = 42
 def seed_everything(seed=SEED):
     random.seed(seed)
     os.environ['PYHTONHASHSEED'] = str(seed)
@@ -83,7 +85,7 @@ seed_everything(SEED)
 ############################################################################## define trainsformation
 SIZE = 336
 
-
+# only include HfLip and cutout for training augumentation
 def transform_train(image, mask):
     # if random.random() < 0.5:
     #     image = albumentations.RandomRotate90(p=1)(image=image)['image']
@@ -116,6 +118,7 @@ def transform_train(image, mask):
 
     return image, mask
 
+# only include HfLip for validating augumentation
 def transform_valid(image, mask):
     # if random.random() < 0.5:
     #     image = albumentations.RandomRotate90(p=1)(image=image)['image']
@@ -135,6 +138,7 @@ def transform_valid(image, mask):
 
     return image, mask
 
+# no augumentation for testing
 def transform_test(image):
     
     image_hard = image.copy()
@@ -149,7 +153,7 @@ def transform_test(image):
 
 
 
-############################################################################## define bev dataset
+############################################################################## define bev dataset for pytorch dataloader
 class BEVImageDataset(torch.utils.data.Dataset):
     def __init__(self, input_filepaths=None, target_filepaths=None, type="train", img_size=336, map_filepaths=None):
         self.input_filepaths = input_filepaths
@@ -170,31 +174,37 @@ class BEVImageDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         input_filepath = self.input_filepaths[idx]
         
+        # get sample token for image index
         sample_token = input_filepath.split("/")[-1].replace("_input.png","")
         
         im = cv2.imread(input_filepath, cv2.IMREAD_UNCHANGED)
         
+        # if map mask exists, add them
         if self.map_filepaths:
             map_filepath = self.map_filepaths[idx]
             map_im = cv2.imread(map_filepath, cv2.IMREAD_UNCHANGED)
             im = np.concatenate((im, map_im), axis=2)
 
+        # if this is for trainin or validating, add target
         if (self.target_filepaths):
             target_filepath = self.target_filepaths[idx]
             target = cv2.imread(target_filepath, cv2.IMREAD_UNCHANGED)
             target = target.astype(np.int64)
         else:
             target = None
-
+        
+        # based on task, add augumentation
         if (self.type == "train"):
             im, target = transform_train(im, target)
         elif (self.type == "valid"):
             im, target = transform_valid(im, target)
         else:
             im, _ = transform_test(im) # im_simple, im_hard
-            
+        
+        # normalize   
         im = im.astype(np.float32)/255
         
+        # transpose for pytorch
         im = torch.from_numpy(im.transpose(2,0,1))
 
         if (self.type != "test"):
@@ -209,6 +219,7 @@ def children(m: nn.Module):
 def num_children(m: nn.Module):
     return len(children(m))
 
+############################################################################## main function for training
 def unet_training(model_name,
                   optimizer_name,
                   lr_scheduler_name,
@@ -221,7 +232,7 @@ def unet_training(model_name,
                   checkpoint_folder,
                   load_pretrain
                   ):
-    ############################################################################## train test splitting 0.8 / 0.2
+    ############################################################################## train test splitting 0.8 / 0.2, shuffle by random seed
     input_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_input.png")))
     target_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_target.png")))
     map_filepaths = sorted(glob.glob(os.path.join(train_data_folder, "*_map.png")))
@@ -278,6 +289,7 @@ def unet_training(model_name,
     # optim = torch.optim.Adam(model.parameters(), lr=1e-3)
     lr = 1e-4
     
+    # define optimizer
     if optimizer_name == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     elif optimizer_name == "adamonecycle":
@@ -293,6 +305,7 @@ def unet_training(model_name,
     else:
         raise NotImplementedError
     
+    # define lr scheduler
     if lr_scheduler_name == "adamonecycle":
         scheduler = lsf.OneCycle(optimizer, len(train_dataset) * num_epoch, lr, [0.95, 0.85], 10.0, 0.4)
         lr_scheduler_each_iter = True
@@ -347,7 +360,7 @@ def unet_training(model_name,
             X = X.to(device).float()  # [N, 6, H, W]
             target = target.to(device)  # [N, H, W] with class indices (0, 1)
             
-            prediction = model(X)  # [N, C, H, W]
+            prediction, _ = model(X)  # [N, 2, H, W]
             loss = F.cross_entropy(prediction, target, weight=class_weights)
 
             target = target.clone().unsqueeze_(1)
@@ -365,7 +378,7 @@ def unet_training(model_name,
                 optimizer.step()
                 optimizer.zero_grad()
 
-                writer.add_scalar('train_loss', loss.item()*accumulation_steps, epoch*len(train_dataloader)*train_batch_size+tr_batch_i*train_batch_size)
+                writer.add_scalar('train_loss', loss.item()*accumulation_steps, epoch*len(train_data_folder)*train_batch_size+tr_batch_i*train_batch_size)
             
             train_losses.append(loss.detach().cpu().numpy())
 
@@ -381,7 +394,7 @@ def unet_training(model_name,
 
                         X = X.to(device).float()  # [N, 3, H, W]
                         target = target.to(device)  # [N, H, W] with class indices (0, 1)
-                        prediction = model(X)  # [N, C, H, W]
+                        prediction, _ = model(X)  # [N, 2, H, W]
 
                         ce_loss = F.cross_entropy(prediction, target, weight=class_weights).detach().cpu().numpy()
 

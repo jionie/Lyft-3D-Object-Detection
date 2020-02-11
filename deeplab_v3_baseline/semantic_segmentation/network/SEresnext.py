@@ -37,7 +37,7 @@ from collections import OrderedDict
 import math
 import torch.nn as nn
 from torch.utils import model_zoo
-from .mynn import *
+import semantic_segmentation.network.mynn as mynn
 
 __all__ = ['SENet', 'se_resnext50_32x4d', 'se_resnext101_32x4d']
 
@@ -128,14 +128,14 @@ class SEBottleneck(Bottleneck):
                  downsample=None):
         super(SEBottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes * 2, kernel_size=1, bias=False)
-        self.bn1 = Norm2d(planes * 2)
+        self.bn1 = mynn.Norm2d(planes * 2)
         self.conv2 = nn.Conv2d(planes * 2, planes * 4, kernel_size=3,
                                stride=stride, padding=1, groups=groups,
                                bias=False)
-        self.bn2 = Norm2d(planes * 4)
+        self.bn2 = mynn.Norm2d(planes * 4)
         self.conv3 = nn.Conv2d(planes * 4, planes * 4, kernel_size=1,
                                bias=False)
-        self.bn3 = Norm2d(planes * 4)
+        self.bn3 = mynn.Norm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
         self.se_module = SEModule(planes * 4, reduction=reduction)
         self.downsample = downsample
@@ -155,12 +155,12 @@ class SEResNetBottleneck(Bottleneck):
         super(SEResNetBottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False,
                                stride=stride)
-        self.bn1 = Norm2d(planes)
+        self.bn1 = mynn.Norm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1,
                                groups=groups, bias=False)
-        self.bn2 = Norm2d(planes)
+        self.bn2 = mynn.Norm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = Norm2d(planes * 4)
+        self.bn3 = mynn.Norm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
         self.se_module = SEModule(planes * 4, reduction=reduction)
         self.downsample = downsample
@@ -179,12 +179,12 @@ class SEResNeXtBottleneck(Bottleneck):
         width = math.floor(planes * (base_width / 64)) * groups
         self.conv1 = nn.Conv2d(inplanes, width, kernel_size=1, bias=False,
                                stride=1)
-        self.bn1 = Norm2d(width)
+        self.bn1 = mynn.Norm2d(width)
         self.conv2 = nn.Conv2d(width, width, kernel_size=3, stride=stride,
                                padding=1, groups=groups, bias=False)
-        self.bn2 = Norm2d(width)
+        self.bn2 = mynn.Norm2d(width)
         self.conv3 = nn.Conv2d(width, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = Norm2d(planes * 4)
+        self.bn3 = mynn.Norm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
         self.se_module = SEModule(planes * 4, reduction=reduction)
         self.downsample = downsample
@@ -248,22 +248,22 @@ class SENet(nn.Module):
             layer0_modules = [
                 ('conv1', nn.Conv2d(3, 64, 3, stride=2, padding=1,
                                     bias=False)),
-                ('bn1', Norm2d(64)),
+                ('bn1', mynn.Norm2d(64)),
                 ('relu1', nn.ReLU(inplace=True)),
                 ('conv2', nn.Conv2d(64, 64, 3, stride=1, padding=1,
                                     bias=False)),
-                ('bn2', Norm2d(64)),
+                ('bn2', mynn.Norm2d(64)),
                 ('relu2', nn.ReLU(inplace=True)),
                 ('conv3', nn.Conv2d(64, inplanes, 3, stride=1, padding=1,
                                     bias=False)),
-                ('bn3', Norm2d(inplanes)),
+                ('bn3', mynn.Norm2d(inplanes)),
                 ('relu3', nn.ReLU(inplace=True)),
             ]
         else:
             layer0_modules = [
                 ('conv1', nn.Conv2d(3, inplanes, kernel_size=7, stride=2,
                                     padding=3, bias=False)),
-                ('bn1', Norm2d(inplanes)),
+                ('bn1', mynn.Norm2d(inplanes)),
                 ('relu1', nn.ReLU(inplace=True)),
             ]
         # To preserve compatibility with Caffe weights `ceil_mode=True`
@@ -322,7 +322,7 @@ class SENet(nn.Module):
                 nn.Conv2d(self.inplanes, planes * block.expansion,
                           kernel_size=downsample_kernel_size, stride=stride,
                           padding=downsample_padding, bias=False),
-                Norm2d(planes * block.expansion),
+                mynn.Norm2d(planes * block.expansion),
             )
 
         layers = []

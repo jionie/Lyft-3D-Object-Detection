@@ -40,7 +40,7 @@ from __future__ import unicode_literals
 import torch
 
 
-from .utils.attr_dict import AttrDict
+from semantic_segmentation.utils.attr_dict import AttrDict
 
 
 __C = AttrDict()
